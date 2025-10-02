@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./apps/api:/usr/share/nginx/html/api:ro
+      - ./apps/console:/usr/share/nginx/html/console:ro
+      - ./apps/default:/usr/share/nginx/html:ro
+    depends_on:
+      - app_api
+      - app_console
+      - app_default
+
+  app_api:
+    image: nginx:1.25-alpine
+    volumes:
+      - ./apps/api:/usr/share/nginx/html:ro
+
+  app_console:
+    image: nginx:1.25-alpine
+    volumes:
+      - ./apps/console:/usr/share/nginx/html:ro
+
+  app_default:
+    image: nginx:1.25-alpine
+    volumes:
+      - ./apps/default:/usr/share/nginx/html:ro
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
