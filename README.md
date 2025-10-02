@@ -1,6 +1,12 @@
+
 # yet.la 管理平台
 
 一个运行在 Linux 服务器上的轻量级管理后台，用来集中管理 `*.yet.la` 下的二级域名解析和短链接跳转规则。项目默认配合 Cloudflare 进行 DNS 解析，由 Nginx 负责 HTTP 入口。
+
+二级域名及短链接管理平台，目前仓库处于规划阶段。
+
+## 快速导航
+- [项目入门指引](docs/ONBOARDING.md)：了解业务背景、推荐的目录规划以及上手建议。
 
 ## 功能概览
 
@@ -82,4 +88,5 @@ $ docker compose exec app python manage.py loaddata fixtures/*.json
 3. 提交 PR 时请附上修改说明、测试截图或日志。
 
 欢迎在 Issue 中提出需求或建议，让 yet.la 的二级域名和短链接管理更加高效！
+
 
