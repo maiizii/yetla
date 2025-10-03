@@ -1,0 +1,43 @@
+{% if subdomains %}
+<table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+  <thead class="bg-slate-50 text-slate-600">
+    <tr>
+      <th scope="col" class="px-4 py-3 font-medium">Host</th>
+      <th scope="col" class="px-4 py-3 font-medium">目标地址</th>
+      <th scope="col" class="px-4 py-3 font-medium">状态码</th>
+      <th scope="col" class="px-4 py-3 font-medium">创建时间</th>
+      <th scope="col" class="px-4 py-3 font-medium text-right">操作</th>
+    </tr>
+  </thead>
+  <tbody class="divide-y divide-slate-100">
+    {% for item in subdomains %}
+    <tr class="hover:bg-slate-50">
+      <td class="px-4 py-3 font-mono text-slate-800">{{ item.host }}</td>
+      <td class="px-4 py-3 text-slate-600 break-words">{{ item.target_url }}</td>
+      <td class="px-4 py-3 text-slate-600">{{ item.code }}</td>
+      <td class="px-4 py-3 text-slate-500">
+        {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
+      </td>
+      <td class="px-4 py-3">
+        <div class="flex justify-end">
+          <button
+            type="button"
+            class="inline-flex items-center rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-600 shadow-sm transition hover:bg-rose-50"
+            hx-delete="/api/subdomains/{{ item.id }}"
+            hx-target="#subdomain-feedback"
+            hx-swap="innerHTML"
+            hx-confirm="确认删除该子域跳转？"
+          >
+            删除
+          </button>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="px-6 py-10 text-center text-sm text-slate-500">
+  暂无子域跳转规则，可通过上方表单或 <code class="font-mono">/api/subdomains</code> 接口创建。
+</div>
+{% endif %}

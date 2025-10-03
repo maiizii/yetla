@@ -1,0 +1,8 @@
+<span
+  id="subdomain-count"
+  hx-get="/admin/subdomains/count"
+  hx-trigger="load, refresh-subdomains from:body"
+  hx-swap="outerHTML"
+>
+  {{ count }}
+</span>
