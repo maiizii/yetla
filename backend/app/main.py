@@ -6,6 +6,7 @@ import secrets
 import string
 
 from typing import Any
+from urllib.parse import parse_qsl
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
@@ -29,6 +30,8 @@ app = FastAPI(
     title="Yetla Redirect API",
     description="管理短链接与子域跳转的受保护接口，并提供公共重定向入口。",
     version="0.2.0",
+    docs_url=None,
+    redoc_url=None,
 )
 
 
@@ -69,7 +72,9 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
             ),
             status_code=exc.status_code,
         )
-    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    return JSONResponse(
+        {"detail": exc.detail}, status_code=exc.status_code, headers=exc.headers or {}
+    )
 def _generate_unique_code(db: Session, length: int) -> str:
     """生成唯一的短链接 code。"""
 
@@ -102,6 +107,10 @@ async def _parse_short_link_payload(request: Request) -> ShortLinkCreate:
     data: dict[str, Any]
     if content_type.startswith("application/json"):
         data = await request.json()
+    elif content_type.startswith("application/x-www-form-urlencoded"):
+        body_bytes = await request.body()
+        decoded = body_bytes.decode("utf-8") if body_bytes else ""
+        data = dict(parse_qsl(decoded, keep_blank_values=True))
     else:
         form = await request.form()
         data = {key: value for key, value in form.multi_items()}
@@ -119,6 +128,10 @@ async def _parse_subdomain_payload(request: Request) -> SubdomainRedirectCreate:
     data: dict[str, Any]
     if content_type.startswith("application/json"):
         data = await request.json()
+    elif content_type.startswith("application/x-www-form-urlencoded"):
+        body_bytes = await request.body()
+        decoded = body_bytes.decode("utf-8") if body_bytes else ""
+        data = dict(parse_qsl(decoded, keep_blank_values=True))
     else:
         form = await request.form()
         data = {key: value for key, value in form.multi_items()}
@@ -188,10 +201,9 @@ def list_short_links(db: Session = Depends(get_db)) -> list[ShortLink]:
 )
 async def create_short_link(
     request: Request,
-    response: Response,
     payload: ShortLinkCreate = Depends(_parse_short_link_payload),
     db: Session = Depends(get_db),
-) -> ShortLink | HTMLResponse:
+) -> Response:
     """创建短链接，code 可空自动生成。"""
 
     code = payload.code
@@ -219,8 +231,12 @@ async def create_short_link(
             status_code=status.HTTP_201_CREATED,
             headers={"HX-Trigger": "refresh-links"},
         )
-    response.headers["HX-Trigger"] = "refresh-links"
-    return short_link
+    body = ShortLinkSchema.model_validate(short_link).model_dump(mode="json")
+    return JSONResponse(
+        body,
+        status_code=status.HTTP_201_CREATED,
+        headers={"HX-Trigger": "refresh-links"},
+    )
 
 
 @app.delete(
@@ -279,10 +295,9 @@ def list_subdomains(db: Session = Depends(get_db)) -> list[SubdomainRedirect]:
 )
 async def create_subdomain(
     request: Request,
-    response: Response,
     payload: SubdomainRedirectCreate = Depends(_parse_subdomain_payload),
     db: Session = Depends(get_db),
-) -> SubdomainRedirect | HTMLResponse:
+) -> Response:
     """创建子域跳转规则，Host 为完整域名。"""
 
     host = payload.host
@@ -308,8 +323,12 @@ async def create_subdomain(
             headers={"HX-Trigger": "refresh-subdomains"},
         )
 
-    response.headers["HX-Trigger"] = "refresh-subdomains"
-    return redirect
+    body = SubdomainRedirectSchema.model_validate(redirect).model_dump(mode="json")
+    return JSONResponse(
+        body,
+        status_code=status.HTTP_201_CREATED,
+        headers={"HX-Trigger": "refresh-subdomains"},
+    )
 
 
 @app.delete(
@@ -362,7 +381,11 @@ def redirect_short_link(code: str, db: Session = Depends(get_db)) -> RedirectRes
     return RedirectResponse(short_link.target_url, status_code=status.HTTP_302_FOUND)
 
 
-@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
+@app.api_route(
+    "/{path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    response_model=None,
+)
 def catch_all(
     request: Request, path: str, db: Session = Depends(get_db)
 ) -> Response:
