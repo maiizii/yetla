@@ -122,6 +122,26 @@ def test_subdomain_redirect_increments_hits(client: "SimpleClient") -> None:
     assert record["hits"] == 3
 
 
+def test_permanent_redirect_counts_hits(client: "SimpleClient") -> None:
+    client.post(
+        "/api/subdomains",
+        json={"host": "permanent.test", "target_url": "https://example.com/permanent", "code": 301},
+        auth=ADMIN_AUTH,
+    )
+
+    response = client.get(
+        "/docs",
+        headers={"host": "permanent.test"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 301
+
+    listing = client.get("/api/subdomains", auth=ADMIN_AUTH)
+    assert listing.status_code == 200
+    record = next(item for item in listing.json() if item["host"] == "permanent.test")
+    assert record["hits"] == 1
+
+
 def test_host_redirect_not_found(client: "SimpleClient") -> None:
     response = client.get("/", headers={"host": "unknown.test"}, follow_redirects=False)
     assert response.status_code == 404

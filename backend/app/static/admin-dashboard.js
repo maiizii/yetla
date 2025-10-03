@@ -175,8 +175,13 @@
           return;
         }
         const source = event.target;
-        if (source instanceof HTMLElement) {
-          handleSuccess(source);
+        if (!(source instanceof HTMLElement)) {
+          return;
+        }
+
+        const target = source.closest("[data-success-event]") || source;
+        if (target instanceof HTMLElement) {
+          handleSuccess(target);
         }
       });
       return;
