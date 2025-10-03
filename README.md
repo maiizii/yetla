@@ -107,6 +107,21 @@ curl -I http://localhost:8000/r/<code>
 
 > 在上述示例中，`curl -I -H "Host: docs.yet.la" http://localhost:8000/` 会命中通配路由并返回数据库配置的 301/302 跳转。
 
+## 后台使用
+
+FastAPI 应用自带一个受 HTTP Basic 保护的管理界面，便于在浏览器中查看数据库记录：
+
+1. 启动 `docker compose up --build` 后访问 `http://127.0.0.1:8080/admin`。
+2. 未携带凭据时会返回 401，可通过以下命令验证：
+
+   ```bash
+   curl -I -H "Host: yet.la" http://127.0.0.1:8080/admin
+   ```
+
+3. 浏览器访问时输入 `ADMIN_USER` / `ADMIN_PASS`（默认 `admin/admin`）后即可看到带有「短链」「子域跳转」两个 Tab 的仪表盘，页面使用 Tailwind CSS 与 HTMX CDN 进行快速排版。（截图占位，后续补充）
+
+> 页面当前以只读方式展示数据，仍建议通过 API 完成增删改操作。
+
 ## 测试运行
 
 后端项目内置了一组 Pytest 用例，用于验证短链 CRUD、子域跳转、认证与公开路由等核心行为。执行方式如下：

@@ -4,15 +4,14 @@ from __future__ import annotations
 import os
 import secrets
 import string
-from typing import Generator
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import Base, SessionLocal, ShortLink, SubdomainRedirect, engine
+from .deps import get_db, require_basic_auth
+from .models import Base, ShortLink, SubdomainRedirect, engine
 from .schemas import (
     ShortLink as ShortLinkSchema,
     ShortLinkCreate,
@@ -20,18 +19,19 @@ from .schemas import (
     SubdomainRedirectCreate,
 )
 
-ADMIN_USER = os.getenv("ADMIN_USER", "admin")
-ADMIN_PASS = os.getenv("ADMIN_PASS", "admin")
 SHORT_CODE_LEN = int(os.getenv("SHORT_CODE_LEN", "6"))
 MAX_CODE_ATTEMPTS = 10
-
-security = HTTPBasic()
 
 app = FastAPI(
     title="Yetla Redirect API",
     description="管理短链接与子域跳转的受保护接口，并提供公共重定向入口。",
     version="0.2.0",
 )
+
+
+from .views import router as admin_router  # noqa: E402  pylint: disable=wrong-import-position
+
+app.include_router(admin_router, dependencies=[Depends(require_basic_auth)])
 
 
 @app.on_event("startup")
@@ -48,31 +48,6 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     if exc.status_code in {status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT}:
         return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
-
-
-def get_db() -> Generator[Session, None, None]:
-    """数据库 Session 依赖。"""
-
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def require_basic_auth(credentials: HTTPBasicCredentials = Depends(security)) -> None:
-    """通过 HTTP Basic 认证保护敏感接口。"""
-
-    correct_username = secrets.compare_digest(credentials.username or "", ADMIN_USER or "")
-    correct_password = secrets.compare_digest(credentials.password or "", ADMIN_PASS or "")
-    if not (correct_username and correct_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="认证失败",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-
-
 def _generate_unique_code(db: Session, length: int) -> str:
     """生成唯一的短链接 code。"""
 
@@ -214,13 +189,6 @@ def delete_subdomain(redirect_id: int, db: Session = Depends(get_db)) -> None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
     db.delete(redirect)
     db.commit()
-
-
-@app.get("/admin", dependencies=[Depends(require_basic_auth)])
-def admin_info() -> dict[str, str]:
-    """受保护的占位接口。"""
-
-    return {"message": "authenticated"}
 
 
 @app.get("/r/{code}")
