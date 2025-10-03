@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8">
+  <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+    <nav class="border-b border-slate-200 px-6 pt-6" aria-label="Sections">
+      <ul class="flex flex-wrap gap-3 text-sm font-medium text-slate-500">
+        <li>
+          <a
+            href="?tab=links"
+            class="inline-flex items-center gap-2 rounded-full px-4 py-2 transition-colors {% if active_tab == 'links' %}bg-sky-100 text-sky-700{% else %}hover:bg-slate-100{% endif %}"
+          >
+            <span class="h-2 w-2 rounded-full {% if active_tab == 'links' %}bg-sky-500{% else %}bg-slate-300{% endif %}"></span>
+            短链 ({{ short_links|length }})
+          </a>
+        </li>
+        <li>
+          <a
+            href="?tab=subdomains"
+            class="inline-flex items-center gap-2 rounded-full px-4 py-2 transition-colors {% if active_tab == 'subdomains' %}bg-sky-100 text-sky-700{% else %}hover:bg-slate-100{% endif %}"
+          >
+            <span class="h-2 w-2 rounded-full {% if active_tab == 'subdomains' %}bg-sky-500{% else %}bg-slate-300{% endif %}"></span>
+            子域跳转 ({{ subdomains|length }})
+          </a>
+        </li>
+      </ul>
+    </nav>
+    <div class="px-6 pb-6">
+      {% if active_tab == 'links' %}
+      <div class="mt-6">
+        <h2 class="text-lg font-semibold text-slate-800">短链管理</h2>
+        <p class="mt-1 text-sm text-slate-500">
+          结合 API 可创建、删除短链。下表展示现有记录的跳转目标与访问次数。
+        </p>
+        <div class="mt-4 overflow-hidden rounded-lg border border-slate-200">
+          <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+            <thead class="bg-slate-50 text-slate-600">
+              <tr>
+                <th scope="col" class="px-4 py-3 font-medium">ID</th>
+                <th scope="col" class="px-4 py-3 font-medium">短链编码</th>
+                <th scope="col" class="px-4 py-3 font-medium">目标地址</th>
+                <th scope="col" class="px-4 py-3 font-medium">访问次数</th>
+                <th scope="col" class="px-4 py-3 font-medium">创建时间</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              {% if short_links %}
+              {% for item in short_links %}
+              <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 text-slate-600">{{ item.id }}</td>
+                <td class="px-4 py-3 font-mono text-slate-800">{{ item.code }}</td>
+                <td class="px-4 py-3 text-slate-600 break-words">{{ item.target_url }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ item.hits }}</td>
+                <td class="px-4 py-3 text-slate-500">
+                  {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
+                </td>
+              </tr>
+              {% endfor %}
+              {% else %}
+              <tr>
+                <td class="px-4 py-6 text-center text-slate-500" colspan="5">
+                  暂无短链记录，可通过 <code class="font-mono">/api/links</code> 接口创建。
+                </td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="mt-6">
+        <h2 class="text-lg font-semibold text-slate-800">子域跳转</h2>
+        <p class="mt-1 text-sm text-slate-500">
+          子域映射可将不同的 Host 指向对应的目标地址，支持配置 301/302 等跳转码。
+        </p>
+        <div class="mt-4 overflow-hidden rounded-lg border border-slate-200">
+          <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+            <thead class="bg-slate-50 text-slate-600">
+              <tr>
+                <th scope="col" class="px-4 py-3 font-medium">ID</th>
+                <th scope="col" class="px-4 py-3 font-medium">Host</th>
+                <th scope="col" class="px-4 py-3 font-medium">目标地址</th>
+                <th scope="col" class="px-4 py-3 font-medium">状态码</th>
+                <th scope="col" class="px-4 py-3 font-medium">创建时间</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              {% if subdomains %}
+              {% for item in subdomains %}
+              <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 text-slate-600">{{ item.id }}</td>
+                <td class="px-4 py-3 font-mono text-slate-800">{{ item.host }}</td>
+                <td class="px-4 py-3 text-slate-600 break-words">{{ item.target_url }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ item.code }}</td>
+                <td class="px-4 py-3 text-slate-500">
+                  {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
+                </td>
+              </tr>
+              {% endfor %}
+              {% else %}
+              <tr>
+                <td class="px-4 py-6 text-center text-slate-500" colspan="5">
+                  暂无子域规则，可通过 <code class="font-mono">/api/subdomains</code> 接口创建。
+                </td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}
