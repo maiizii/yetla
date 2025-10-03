@@ -3,14 +3,41 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from pathlib import Path
 
-from sqlalchemy import DateTime, Integer, String, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import DateTime, Integer, String, create_engine, func
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////data/data.db")
+
+
+def _ensure_sqlite_directory(database_url: str) -> None:
+    """Ensure the parent directory for a SQLite database exists."""
+
+    url = make_url(database_url)
+    if url.drivername != "sqlite":
+        return
+
+    database = url.database or ""
+    if not database or database == ":memory:":
+        return
+
+    db_path = Path(database)
+    parent = db_path.parent
+    if parent.exists():
+        return
+
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:  # pragma: no cover - depends on environment permissions
+        raise RuntimeError(
+            f"无法创建 SQLite 数据目录: {parent!s}"
+        ) from exc
+
+
+_ensure_sqlite_directory(DATABASE_URL)
 
 
 class Base(DeclarativeBase):
