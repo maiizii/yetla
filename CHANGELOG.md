@@ -18,3 +18,8 @@
 - 新增 `infra/nginx/conf.d/yetla.upstream.conf`，将容器内 Nginx 的入口统一代理到 `backend`。
 - 提供 `docker-compose.override.yml`，默认保留 `8080:80` 并可选开启 `80:80` 暴露端口。
 - README 补充部署章节，说明容器化 Nginx → backend 的统一流量入口。
+
+## 2025-10-07
+- 为 backend 服务新增 Docker Compose 健康检查，命中 `/routes` 确认数据接口可用。
+- 在仓库根目录加入 `Makefile`，封装 `up/down/logs/test/shell` 常用命令。
+- README 新增「一键命令」章节，介绍上述快捷指令。
