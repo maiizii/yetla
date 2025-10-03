@@ -35,6 +35,10 @@ class SubdomainRedirectCreate(SubdomainRedirectBase):
     pass
 
 
+class SubdomainRedirectUpdate(SubdomainRedirectBase):
+    pass
+
+
 class ShortLinkBase(BaseModel):
     target_url: str = Field(..., description="目标地址")
 
@@ -58,4 +62,16 @@ class ShortLink(ShortLinkBase):
     created_at: datetime = Field(..., description="创建时间")
 
     model_config = {"from_attributes": True}
+
+
+class ShortLinkUpdate(ShortLinkBase):
+    code: str = Field(..., description="短链编码")
+
+    @field_validator("code")
+    @classmethod
+    def _normalize_code(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("短链编码不能为空")
+        return stripped
 

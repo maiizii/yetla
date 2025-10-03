@@ -47,6 +47,29 @@ def test_delete_subdomain(client: "SimpleClient") -> None:
     assert fallback.text == "Not Found"
 
 
+def test_update_subdomain_via_htmx_form(client: "SimpleClient") -> None:
+    created = client.post(
+        "/api/subdomains",
+        json={"host": "edit.test", "target_url": "https://example.com/old"},
+        auth=ADMIN_AUTH,
+    ).json()
+
+    response = client.put(
+        f"/api/subdomains/{created['id']}",
+        data={"host": "edit.test", "target_url": "https://example.com/new", "code": "301"},
+        headers={"hx-request": "true"},
+        auth=ADMIN_AUTH,
+    )
+    assert response.status_code == 200
+    assert response.headers.get("hx-trigger") == "refresh-subdomains"
+    assert "子域跳转已更新" in response.text
+
+    listing = client.get("/api/subdomains", auth=ADMIN_AUTH)
+    records = listing.json()
+    assert records[0]["target_url"] == "https://example.com/new"
+    assert records[0]["code"] == 301
+
+
 def test_host_redirect_status_codes(client: "SimpleClient") -> None:
     client.post(
         "/api/subdomains",
