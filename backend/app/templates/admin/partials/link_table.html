@@ -27,6 +27,7 @@
             hx-target="#link-feedback"
             hx-swap="innerHTML"
             hx-confirm="确认删除该短链？"
+            hx-on::afterRequest="if(event.detail.successful){ htmx.trigger(document.body, 'refresh-links') }"
           >
             删除
           </button>
