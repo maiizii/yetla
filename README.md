@@ -159,6 +159,45 @@ FastAPI 应用自带一个受 HTTP Basic 保护的管理界面，便于在浏览
 
 若输入格式不符合校验要求（例如 Host 留空、状态码不在 301/302 范围），接口返回的错误原因同样会通过 HTMX 直接显示，便于即时修正。
 
+## 安全基线
+
+为避免演示环境在生产中暴露风险，建议部署前检查以下安全基线：
+
+- **强化 HTTP Basic 凭据**：在 `.env` 或宿主环境中设置 `ADMIN_USER`/`ADMIN_PASS` 时，应使用长度 ≥ 16、混合大小写字母、数字与符号的随机密码，并周期性轮换。若使用密码管理器生成，可同时记录最后一次更新日期，避免长期复用默认凭据。
+- **限制管理接口来源 IP**：建议在宿主机 Nginx（或前置负载均衡）层配置白名单，仅允许办公出口或 VPN 地址访问 `/admin`、`/api/*` 等受保护路径。例如：
+
+  ```nginx
+  # /etc/nginx/conf.d/yetla-admin.conf
+  map $remote_addr $yetla_admin_allowed {
+      default 0;
+      # 总部出口
+      203.0.113.10 1;
+      # VPN 网段
+      198.51.100.0/24 1;
+  }
+
+  server {
+      listen 443 ssl;
+      server_name yet.la;
+
+      location ~ ^/(admin|api/) {
+          if ($yetla_admin_allowed = 0) {
+              return 403;
+          }
+          proxy_pass http://backend:8000;
+          include proxy_params;
+      }
+  }
+  ```
+
+- **备份日志与数据卷**：`./data` 目录包含 SQLite 等持久化文件，建议与容器日志一并纳入计划性备份。可在宿主机设置 cron 任务，调用 [docs/backup-example.sh](docs/backup-example.sh) 这类脚本将数据打包并同步到远端对象存储或备份盘，同时保留至少 7 天的滚动版本。例如：
+
+  ```cron
+  0 3 * * * /opt/yetla/docs/backup-example.sh >> /var/log/backup-yetla.log 2>&1
+  ```
+
+以上措施旨在降低凭据泄漏、接口滥用与数据丢失风险，但仍需配合组织的安全审计、入侵检测与合规流程。
+
 ## 测试运行
 
 后端项目内置了一组 Pytest 用例，用于验证短链 CRUD、子域跳转、认证与公开路由等核心行为。执行方式如下：
