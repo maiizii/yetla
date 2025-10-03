@@ -190,7 +190,7 @@ curl -sk -u admin:admin \
 
 ## 证书与 Nginx 配置
 
-Nginx 容器通过只读挂载 `/root/ssl -> /etc/nginx/ssl` 读取证书：
+Nginx 容器通过只读挂载 `/root/ssl -> /etc/nginx/ssl-src` 读取证书，并在启动时自动为 `/etc/nginx/ssl` 生成标准化链接：
 
 1. 在宿主机准备证书目录（示例使用 Cloudflare 签发的 ECDSA 证书）：
    ```bash
@@ -203,8 +203,8 @@ Nginx 容器通过只读挂载 `/root/ssl -> /etc/nginx/ssl` 读取证书：
    ln -s /root/ssl/*.yet.la_yet.la_P256/private.key   /root/ssl/private.key
    chmod 600 /root/ssl/*.cer /root/ssl/*.key
    ```
-3. `docker-compose.yml` 将 `/root/ssl` 以只读方式挂载到容器 `/etc/nginx/ssl`。入口脚本会在启动阶段检查 `fullchain.cer` 与 `private.key` 是否就绪，缺失时给出错误提示。
-4. 如需轮换证书，先更新宿主机指向的目标文件，再执行 `docker compose restart nginx`。
+3. `docker-compose.yml` 将 `/root/ssl` 以只读方式挂载到容器 `/etc/nginx/ssl-src`，并在容器内部创建独立的数据卷 `/etc/nginx/ssl`。入口脚本会自动在可写目录下生成 `fullchain.cer` 与 `private.key` 的符号链接，支持常见的 `*.cer/.pem` 命名。
+4. 如需轮换证书，先更新宿主机指向的目标文件，再执行 `docker compose restart nginx` 触发入口脚本重新链接。
 
 `infra/nginx/conf.d/yetla.upstream.conf` 的核心配置片段如下：
 
