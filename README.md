@@ -98,6 +98,21 @@ curl -I http://localhost:8000/r/<code>
 
 > 在上述示例中，`curl -I -H "Host: docs.yet.la" http://localhost:8000/` 会命中通配路由并返回数据库配置的 301/302 跳转。
 
+## 测试运行
+
+后端项目内置了一组 Pytest 用例，用于验证短链 CRUD、子域跳转、认证与公开路由等核心行为。执行方式如下：
+
+```bash
+# 安装依赖
+pip install -r backend/requirements.txt
+
+# 在本机直接运行
+pytest -q
+
+# 若通过 Docker Compose 部署了后端容器，也可在容器内执行
+docker compose exec backend pytest -q
+```
+
 ## 环境变量
 
 项目根目录提供了示例文件 [`.env.example`](.env.example)，可复制为 `.env` 并根据实际情况调整：
