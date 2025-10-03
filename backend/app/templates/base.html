@@ -18,7 +18,12 @@
     ></script>
     <script>
       document.addEventListener("htmx:configRequest", function (event) {
-        event.detail.withCredentials = true;
+        if (event.detail.xhr) {
+          event.detail.xhr.withCredentials = true;
+        }
+        if (event.detail.fetchOpts) {
+          event.detail.fetchOpts.credentials = "include";
+        }
       });
     </script>
   </head>
