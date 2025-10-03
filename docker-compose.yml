@@ -11,8 +11,12 @@ services:
       - ./infra/nginx/docker-entrypoint.d:/docker-entrypoint.d:ro
       - type: bind
         source: /root/ssl
-        target: /etc/nginx/ssl
+        target: /etc/nginx/ssl-src
         read_only: true
+      - nginx_ssl_cache:/etc/nginx/ssl
+    environment:
+      - SSL_SOURCE_DIR=/etc/nginx/ssl-src
+      - SSL_TARGET_DIR=/etc/nginx/ssl
     depends_on:
       - backend
 
@@ -27,3 +31,6 @@ services:
       - ./data:/data
     env_file:
       - ./.env
+
+volumes:
+  nginx_ssl_cache:
