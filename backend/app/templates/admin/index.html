@@ -11,7 +11,16 @@
             class="inline-flex items-center gap-2 rounded-full px-4 py-2 transition-colors {% if active_tab == 'links' %}bg-sky-100 text-sky-700{% else %}hover:bg-slate-100{% endif %}"
           >
             <span class="h-2 w-2 rounded-full {% if active_tab == 'links' %}bg-sky-500{% else %}bg-slate-300{% endif %}"></span>
-            短链 ({{ short_links|length }})
+            短链 (
+            <span
+              id="short-link-count"
+              hx-get="/admin/links/count"
+              hx-trigger="load, refresh-links from:body"
+              hx-swap="outerHTML"
+            >
+              {{ short_links|length }}
+            </span>
+            )
           </a>
         </li>
         <li>
@@ -27,45 +36,80 @@
     </nav>
     <div class="px-6 pb-6">
       {% if active_tab == 'links' %}
-      <div class="mt-6">
-        <h2 class="text-lg font-semibold text-slate-800">短链管理</h2>
-        <p class="mt-1 text-sm text-slate-500">
-          结合 API 可创建、删除短链。下表展示现有记录的跳转目标与访问次数。
-        </p>
-        <div class="mt-4 overflow-hidden rounded-lg border border-slate-200">
-          <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead class="bg-slate-50 text-slate-600">
-              <tr>
-                <th scope="col" class="px-4 py-3 font-medium">ID</th>
-                <th scope="col" class="px-4 py-3 font-medium">短链编码</th>
-                <th scope="col" class="px-4 py-3 font-medium">目标地址</th>
-                <th scope="col" class="px-4 py-3 font-medium">访问次数</th>
-                <th scope="col" class="px-4 py-3 font-medium">创建时间</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              {% if short_links %}
-              {% for item in short_links %}
-              <tr class="hover:bg-slate-50">
-                <td class="px-4 py-3 text-slate-600">{{ item.id }}</td>
-                <td class="px-4 py-3 font-mono text-slate-800">{{ item.code }}</td>
-                <td class="px-4 py-3 text-slate-600 break-words">{{ item.target_url }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ item.hits }}</td>
-                <td class="px-4 py-3 text-slate-500">
-                  {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
-                </td>
-              </tr>
-              {% endfor %}
-              {% else %}
-              <tr>
-                <td class="px-4 py-6 text-center text-slate-500" colspan="5">
-                  暂无短链记录，可通过 <code class="font-mono">/api/links</code> 接口创建。
-                </td>
-              </tr>
-              {% endif %}
-            </tbody>
-          </table>
-        </div>
+      <div class="mt-6 space-y-6">
+        <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
+            <h2 class="text-base font-semibold text-slate-800">创建短链</h2>
+            <p class="mt-1 text-sm text-slate-500">
+              仅需填写目标地址，可选填短链编码。提交后表格会自动刷新。
+            </p>
+          </div>
+          <form
+            class="space-y-4 px-6 py-6"
+            hx-post="/api/links"
+            hx-trigger="submit"
+            hx-target="#link-feedback"
+            hx-swap="innerHTML"
+          >
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label for="code" class="block text-sm font-medium text-slate-700">短链编码（可选）</label>
+                <input
+                  id="code"
+                  name="code"
+                  type="text"
+                  class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  placeholder="留空则自动生成"
+                />
+              </div>
+              <div class="sm:col-span-2">
+                <label for="target_url" class="block text-sm font-medium text-slate-700">目标地址 *</label>
+                <input
+                  id="target_url"
+                  name="target_url"
+                  type="url"
+                  required
+                  class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  placeholder="https://example.com/path"
+                />
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <p class="text-xs text-slate-500">
+                表单直接调用 <code class="font-mono">POST /api/links</code>，遵循与外部调用一致的校验。
+              </p>
+              <button
+                type="submit"
+                class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-500"
+              >
+                保存短链
+              </button>
+            </div>
+          </form>
+          <div
+            id="link-feedback"
+            class="border-t border-slate-200 px-6 py-4 text-sm text-slate-500"
+            role="status"
+            aria-live="polite"
+          ></div>
+        </section>
+        <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
+            <h2 class="text-base font-semibold text-slate-800">短链列表</h2>
+            <p class="mt-1 text-sm text-slate-500">
+              列表展示当前短链、跳转目标与累计访问次数，可在操作列直接删除。
+            </p>
+          </div>
+          <div
+            id="links-table"
+            class="bg-white"
+            hx-get="/admin/links/table"
+            hx-trigger="load, refresh-links from:body"
+            hx-swap="innerHTML"
+          >
+            {% include "admin/partials/link_table.html" %}
+          </div>
+        </section>
       </div>
       {% else %}
       <div class="mt-6">

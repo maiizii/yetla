@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 import os
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -131,15 +132,23 @@ class SimpleClient:
         *,
         headers: dict[str, str] | None = None,
         json_body: Any | None = None,
+        data: dict[str, str] | None = None,
         auth: tuple[str, str] | None = None,
         follow_redirects: bool = True,
     ) -> SimpleResponse:
         prepared_headers = {k.lower(): v for k, v in (headers or {}).items()}
         prepared_headers.setdefault("host", "testserver")
         body = b""
+        if json_body is not None and data is not None:
+            raise ValueError("json_body and data cannot be provided together")
         if json_body is not None:
             body = json.dumps(json_body, ensure_ascii=False).encode("utf-8")
             prepared_headers.setdefault("content-type", "application/json")
+        elif data is not None:
+            body = urllib.parse.urlencode(data).encode("utf-8")
+            prepared_headers.setdefault(
+                "content-type", "application/x-www-form-urlencoded"
+            )
 
         if auth is not None:
             token = base64.b64encode(f"{auth[0]}:{auth[1]}".encode("utf-8")).decode("ascii")
@@ -187,6 +196,7 @@ class SimpleClient:
         url: str,
         *,
         json: Any | None = None,
+        data: dict[str, str] | None = None,
         headers: dict[str, str] | None = None,
         auth: tuple[str, str] | None = None,
         follow_redirects: bool = True,
@@ -196,6 +206,7 @@ class SimpleClient:
             url,
             headers=headers,
             json_body=json,
+            data=data,
             auth=auth,
             follow_redirects=follow_redirects,
         )

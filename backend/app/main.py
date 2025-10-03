@@ -5,8 +5,10 @@ import os
 import secrets
 import string
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
+from typing import Any
+
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,6 +20,7 @@ from .schemas import (
     SubdomainRedirect as SubdomainRedirectSchema,
     SubdomainRedirectCreate,
 )
+from pydantic import ValidationError
 
 SHORT_CODE_LEN = int(os.getenv("SHORT_CODE_LEN", "6"))
 MAX_CODE_ATTEMPTS = 10
@@ -45,8 +48,27 @@ def ensure_tables() -> None:
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """为 404/409 返回统一结构，方便调用方解析。"""
 
+    hx_request = request.headers.get("hx-request") == "true"
     if exc.status_code in {status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT}:
+        if hx_request:
+            return HTMLResponse(
+                (
+                    "<div class=\"rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700\">"
+                    f"{exc.detail}"
+                    "</div>"
+                ),
+                status_code=exc.status_code,
+            )
         return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+    if exc.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY and hx_request:
+        return HTMLResponse(
+            (
+                "<div class=\"rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700\">"
+                f"{_format_validation_errors(exc.detail)}"
+                "</div>"
+            ),
+            status_code=exc.status_code,
+        )
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 def _generate_unique_code(db: Session, length: int) -> str:
     """生成唯一的短链接 code。"""
@@ -71,6 +93,47 @@ def _compose_redirect_target(base_url: str, path: str, query: str) -> str:
         separator = "&" if "?" in destination else "?"
         destination = f"{destination}{separator}{query}"
     return destination
+
+
+async def _parse_short_link_payload(request: Request) -> ShortLinkCreate:
+    """解析短链请求载荷，兼容 JSON 与表单提交。"""
+
+    content_type = request.headers.get("content-type", "").lower()
+    data: dict[str, Any]
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        form = await request.form()
+        data = {key: value for key, value in form.multi_items()}
+
+    try:
+        return ShortLinkCreate.model_validate(data)
+    except ValidationError as exc:  # pragma: no cover - FastAPI 将统一处理
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+
+def _format_validation_errors(detail: Any) -> str:
+    """将 Pydantic 错误信息转换为可读字符串。"""
+
+    if isinstance(detail, list):
+        messages: list[str] = []
+        for item in detail:
+            if not isinstance(item, dict):
+                continue
+            loc = item.get("loc", [])
+            field = next(
+                (
+                    str(part)
+                    for part in loc
+                    if isinstance(part, str) and part not in {"body", "__root__"}
+                ),
+                "请求",
+            )
+            message = item.get("msg", "输入不合法")
+            messages.append(f"{field}: {message}")
+        if messages:
+            return "；".join(messages)
+    return str(detail)
 
 
 @app.get("/healthz")
@@ -106,7 +169,12 @@ def list_short_links(db: Session = Depends(get_db)) -> list[ShortLink]:
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_basic_auth)],
 )
-def create_short_link(payload: ShortLinkCreate, db: Session = Depends(get_db)) -> ShortLink:
+async def create_short_link(
+    request: Request,
+    response: Response,
+    payload: ShortLinkCreate = Depends(_parse_short_link_payload),
+    db: Session = Depends(get_db),
+) -> ShortLink | HTMLResponse:
     """创建短链接，code 可空自动生成。"""
 
     code = payload.code
@@ -121,6 +189,20 @@ def create_short_link(payload: ShortLinkCreate, db: Session = Depends(get_db)) -
     db.add(short_link)
     db.commit()
     db.refresh(short_link)
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = (
+            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
+            "短链创建成功：<code class=\"font-mono\">"
+            f"{short_link.code}"
+            "</code></div>"
+        )
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_201_CREATED,
+            headers={"HX-Trigger": "refresh-links"},
+        )
+    response.headers["HX-Trigger"] = "refresh-links"
     return short_link
 
 
@@ -129,7 +211,12 @@ def create_short_link(payload: ShortLinkCreate, db: Session = Depends(get_db)) -
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_basic_auth)],
 )
-def delete_short_link(link_id: int, db: Session = Depends(get_db)) -> None:
+def delete_short_link(
+    link_id: int,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> Response | HTMLResponse:
     """删除指定短链接。"""
 
     short_link = db.get(ShortLink, link_id)
@@ -137,6 +224,20 @@ def delete_short_link(link_id: int, db: Session = Depends(get_db)) -> None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
     db.delete(short_link)
     db.commit()
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = (
+            "<div class=\"rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700\">"
+            "短链已删除"
+            "</div>"
+        )
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_200_OK,
+            headers={"HX-Trigger": "refresh-links"},
+        )
+    response.headers["HX-Trigger"] = "refresh-links"
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get(
