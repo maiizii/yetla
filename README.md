@@ -50,6 +50,15 @@ http://yet.la:8080          # 默认站点
 
 FastAPI 接口可通过 `http://localhost:8000/routes` 查看当前子域映射。
 
+## 部署
+
+默认的 `docker-compose.yml` 仍保留示例站点路由，方便验证静态 upstream 的写法。若要让容器化 Nginx 统一代理到 FastAPI backend，只需保留同目录下的 `docker-compose.override.yml`：
+
+- `infra/nginx/conf.d/yetla.upstream.conf`：监听 `yet.la` 与所有子域，将流量透传到 `backend:8000`，并传递 `Host`、`X-Forwarded-*` 等头部。
+- `docker-compose.override.yml`：在开发机同时暴露 `8080:80` 与可选的 `80:80`，并将上述配置挂载为 Nginx 的默认入口。
+
+运行 `docker compose up -d --build` 后，访问 `http://127.0.0.1:8080/`，即可通过后端提供的 `SubdomainRedirect` 数据命中 301/302 跳转。
+
 ## API 说明与示例 curl
 
 `backend/app/main.py` 提供了公开与受保护的接口组合：
