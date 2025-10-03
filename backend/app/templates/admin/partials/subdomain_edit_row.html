@@ -5,7 +5,7 @@
       hx-put="/api/subdomains/{{ item.id }}"
       hx-target="#subdomain-feedback"
       hx-swap="innerHTML"
-      hx-on::afterRequest="if(event.detail.successful){ htmx.trigger(document.body, 'refresh-subdomains') }"
+      data-success-event="refresh-subdomains"
     >
       <div class="grid gap-4 sm:grid-cols-3">
         <div class="sm:col-span-1">
