@@ -50,6 +50,29 @@ http://yet.la:8080          # 默认站点
 
 FastAPI 接口可通过 `http://localhost:8000/routes` 查看当前子域映射。
 
+## 一键命令
+
+项目根目录提供了 `Makefile`，将常用的 Docker Compose 操作封装为以下指令：
+
+```bash
+# 构建并启动所有服务（等价于 docker compose up -d --build）
+make up
+
+# 停止并清理容器、网络与匿名卷
+make down
+
+# 追踪所有服务的输出日志
+make logs
+
+# 在后端容器内运行 Pytest 用例
+make test
+
+# 启动后端容器的交互式 Shell
+make shell
+```
+
+上述命令默认读取 `docker-compose.yml` 与 `docker-compose.override.yml`，方便在开发机快速验证路由配置与接口健康状况。
+
 ## 部署
 
 默认的 `docker-compose.yml` 仍保留示例站点路由，方便验证静态 upstream 的写法。若要让容器化 Nginx 统一代理到 FastAPI backend，只需保留同目录下的 `docker-compose.override.yml`：

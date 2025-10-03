@@ -7,3 +7,11 @@ services:
       - "80:80"
     volumes:
       - ./infra/nginx/conf.d/yetla.upstream.conf:/etc/nginx/conf.d/default.conf:ro
+
+  backend:
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/routes')"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
