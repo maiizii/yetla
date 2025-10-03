@@ -27,6 +27,7 @@ class SubdomainRedirectBase(BaseModel):
 class SubdomainRedirect(SubdomainRedirectBase):
     id: int = Field(..., description="数据库主键")
     created_at: datetime = Field(..., description="创建时间")
+    hits: int = Field(default=0, description="累计访问次数")
 
     model_config = {"from_attributes": True}
 

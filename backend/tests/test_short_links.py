@@ -39,7 +39,7 @@ def test_redirect_short_link_and_hits(client: "SimpleClient") -> None:
         auth=ADMIN_AUTH,
     )
 
-    redirect = client.get("/r/go", follow_redirects=False)
+    redirect = client.get("/go", follow_redirects=False)
     assert redirect.status_code == 302
     assert redirect.headers["location"] == "https://example.com/landing"
 
@@ -51,7 +51,7 @@ def test_redirect_short_link_and_hits(client: "SimpleClient") -> None:
 
 
 def test_redirect_short_link_not_found(client: "SimpleClient") -> None:
-    response = client.get("/r/missing", follow_redirects=False)
+    response = client.get("/missing", follow_redirects=False)
     assert response.status_code == 404
     assert response.json() == {"error": "短链接不存在"}
 
