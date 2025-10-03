@@ -56,7 +56,21 @@ FastAPI 接口可通过 `http://localhost:8000/routes` 查看当前子域映射�
 2. **热更新**：应用配置后执行 `nginx -s reload` 即可生效，无需下线服务。
 3. **审计与备份**：将配置与路由数据版本化，方便回溯。
 
-## 开发计划（Roadmap）
+## 路线图
+
+围绕「Server-side Redirects」后续迭代，基线阶段聚焦于以下检查点：
+
+- **受影响的核心文件**：
+  - `docker-compose.yml`：声明 Nginx 与 FastAPI 后端服务，后续重定向能力将依赖该编排。
+  - `backend/app/main.py`：提供 `/routes` 接口，是 Nginx 模板生成与校验的当前数据源。
+- **最小自检命令**：
+
+  ```bash
+  docker compose up -d
+  curl http://localhost:8000/routes
+  ```
+
+后续迭代任务：
 
 - [ ] 设计数据库 schema（域名记录、短链接、审计日志）
 - [ ] 实现完整 CRUD API 与鉴权
