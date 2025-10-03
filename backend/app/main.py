@@ -5,6 +5,7 @@ import os
 import secrets
 import string
 
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl
 
@@ -42,7 +43,12 @@ app.include_router(admin_router, dependencies=[Depends(require_basic_auth)])
 
 @app.on_event("startup")
 def ensure_tables() -> None:
-    """应用启动时自动创建数据库表。"""
+    """应用启动时确保数据目录存在并创建数据库表。"""
+
+    try:
+        Path("/data").mkdir(parents=True, exist_ok=True)
+    except Exception as exc:  # pragma: no cover - 失败属于部署问题
+        raise RuntimeError(f"failed to ensure /data directory: {exc}") from exc
 
     Base.metadata.create_all(bind=engine)
 
