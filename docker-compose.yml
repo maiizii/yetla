@@ -4,12 +4,11 @@ services:
   nginx:
     image: nginx:1.25-alpine
     ports:
-      - "8080:80"
+      - "80:80"
       - "443:443"
     volumes:
       - ./infra/nginx/conf.d/yetla.upstream.conf:/etc/nginx/conf.d/default.conf:ro
       - ./infra/nginx/docker-entrypoint.d:/docker-entrypoint.d:ro
-      - ./apps/default:/usr/share/nginx/html:ro
       - type: bind
         source: /root/ssl
         target: /etc/nginx/ssl
