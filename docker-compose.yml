@@ -7,9 +7,6 @@ services:
       - "8080:80"
     volumes:
       - ./infra/nginx/conf.d/subdomains.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./apps/api:/usr/share/nginx/html/api:ro
-      - ./apps/console:/usr/share/nginx/html/console:ro
-      - ./apps/default:/usr/share/nginx/html:ro
     depends_on:
       - app_api
       - app_console
