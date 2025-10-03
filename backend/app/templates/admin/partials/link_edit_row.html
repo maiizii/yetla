@@ -5,7 +5,7 @@
       hx-put="/api/links/{{ item.id }}"
       hx-target="#link-feedback"
       hx-swap="innerHTML"
-      hx-on::afterRequest="if(event.detail.successful){ htmx.trigger(document.body, 'refresh-links') }"
+      data-success-event="refresh-links"
     >
       <div class="grid gap-4 sm:grid-cols-2">
         <div>

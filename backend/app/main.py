@@ -11,6 +11,7 @@ from urllib.parse import parse_qsl
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -40,6 +41,9 @@ app = FastAPI(
 
 
 from .views import router as admin_router  # noqa: E402  pylint: disable=wrong-import-position
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 app.include_router(admin_router, dependencies=[Depends(require_basic_auth)])
 

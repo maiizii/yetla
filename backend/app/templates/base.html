@@ -16,6 +16,7 @@
       crossorigin="anonymous"
       defer
     ></script>
+    <script src="/static/admin-dashboard.js" defer></script>
     <script>
       document.addEventListener("htmx:configRequest", function (event) {
         if (event.detail.xhr) {
@@ -31,6 +32,7 @@
   <body
     class="min-h-full text-slate-800"
     {% if auth_header %}hx-headers='{{ {"Authorization": auth_header}|tojson }}'{% endif %}
+    {% if auth_header %}data-auth-header="{{ auth_header }}"{% endif %}
   >
     <header class="bg-white shadow">
       <div class="mx-auto max-w-5xl px-4 py-5 sm:px-6 lg:px-8">

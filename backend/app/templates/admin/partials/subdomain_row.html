@@ -23,7 +23,7 @@
         hx-target="#subdomain-feedback"
         hx-swap="innerHTML"
         hx-confirm="确认删除该子域跳转？"
-        hx-on::afterRequest="if(event.detail.successful){ htmx.trigger(document.body, 'refresh-subdomains') }"
+        data-success-event="refresh-subdomains"
       >
         删除
       </button>
