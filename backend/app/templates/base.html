@@ -27,7 +27,11 @@
       });
     </script>
   </head>
-  <body class="min-h-full text-slate-800">
+  {% set auth_header = request.headers.get("Authorization") if request else None %}
+  <body
+    class="min-h-full text-slate-800"
+    {% if auth_header %}hx-headers='{{ {"Authorization": auth_header}|tojson }}'{% endif %}
+  >
     <header class="bg-white shadow">
       <div class="mx-auto max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
         <h1 class="text-2xl font-semibold text-slate-900">Yet.la 管理后台</h1>
