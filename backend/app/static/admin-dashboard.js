@@ -89,6 +89,78 @@
     return { response, text };
   }
 
+  async function submitWithFallback(formLike, submitter, authHeaderValue) {
+    if (!(formLike instanceof HTMLFormElement)) {
+      return;
+    }
+
+    if (
+      !formLike.hasAttribute("hx-post") &&
+      !formLike.hasAttribute("hx-put")
+    ) {
+      return;
+    }
+
+    if (formLike.dataset.htmxSubmitting === "true") {
+      return;
+    }
+
+    const targetUrl =
+      formLike.getAttribute("hx-post") || formLike.getAttribute("hx-put");
+    if (!targetUrl) {
+      return;
+    }
+
+    formLike.dataset.htmxSubmitting = "true";
+
+    const method = formLike.hasAttribute("hx-post") ? "POST" : "PUT";
+    const targetSelector = formLike.getAttribute("hx-target");
+    const swapStrategy = formLike.getAttribute("hx-swap") || "innerHTML";
+    const target = resolveTarget(formLike, targetSelector);
+
+    const formData = new FormData(formLike);
+    if (
+      submitter &&
+      typeof submitter.name === "string" &&
+      submitter.name &&
+      !formData.has(submitter.name)
+    ) {
+      formData.append(submitter.name, submitter.value);
+    }
+
+    const body = new URLSearchParams();
+    formData.forEach((value, key) => {
+      if (typeof value === "string") {
+        body.append(key, value);
+      }
+    });
+
+    try {
+      const { response, text } = await fetchFragment(targetUrl, {
+        method,
+        headers: buildHeaders(authHeaderValue, {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        }),
+        body,
+      });
+
+      if (target) {
+        swapContent(target, text, swapStrategy);
+      }
+
+      if (response.ok) {
+        handleSuccess(formLike);
+      }
+    } catch (error) {
+      if (target) {
+        target.textContent = "请求失败，请稍后再试";
+      }
+      console.error("Failed to submit form", error);
+    } finally {
+      delete formLike.dataset.htmxSubmitting;
+    }
+  }
+
   function dispatchSuccessEvent(element) {
     const eventName = element.getAttribute("data-success-event");
     if (!eventName) {
@@ -217,58 +289,51 @@
     refreshSubdomainsHandler();
 
     document.body.addEventListener("submit", async (event) => {
-      const form = event.target instanceof HTMLFormElement
-        ? event.target
-        : event.target.closest("form");
+      const form =
+        event.target instanceof HTMLFormElement
+          ? event.target
+          : event.target.closest("form");
       if (!form) {
         return;
       }
 
-      const targetUrl = form.getAttribute("hx-post") || form.getAttribute("hx-put");
-      if (!targetUrl) {
+      if (form.dataset.htmxSubmitting === "true") {
+        event.preventDefault();
+        return;
+      }
+
+      if (!form.hasAttribute("hx-post") && !form.hasAttribute("hx-put")) {
         return;
       }
 
       event.preventDefault();
 
-      const method = form.getAttribute("hx-post") ? "POST" : "PUT";
-      const targetSelector = form.getAttribute("hx-target");
-      const swapStrategy = form.getAttribute("hx-swap") || "innerHTML";
-      const target = resolveTarget(form, targetSelector);
-
-      const formData = new FormData(form);
-      const body = new URLSearchParams();
-      formData.forEach((value, key) => {
-        if (typeof value === "string") {
-          body.append(key, value);
-        }
-      });
-
-      try {
-        const { response, text } = await fetchFragment(targetUrl, {
-          method,
-          headers: buildHeaders(authHeader, {
-            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-          }),
-          body,
-        });
-
-        if (target) {
-          swapContent(target, text, swapStrategy);
-        }
-
-        if (response.ok) {
-          handleSuccess(form);
-        }
-      } catch (error) {
-        if (target) {
-          target.textContent = "请求失败，请稍后再试";
-        }
-        console.error("Failed to submit form", error);
-      }
+      const submitter =
+        typeof event.submitter !== "undefined" && event.submitter
+          ? event.submitter
+          : undefined;
+      await submitWithFallback(form, submitter, authHeader);
     });
 
     document.body.addEventListener("click", async (event) => {
+      const submitter = event.target.closest(
+        "button[type=submit], input[type=submit]",
+      );
+      if (submitter) {
+        const form = submitter.form || submitter.closest("form");
+        if (form) {
+          if (form.dataset.htmxSubmitting === "true") {
+            event.preventDefault();
+            return;
+          }
+          if (form.hasAttribute("hx-post") || form.hasAttribute("hx-put")) {
+            event.preventDefault();
+            await submitWithFallback(form, submitter, authHeader);
+            return;
+          }
+        }
+      }
+
       const trigger = event.target.closest("[hx-get], [hx-delete]");
       if (!trigger) {
         return;
