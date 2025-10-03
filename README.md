@@ -6,9 +6,11 @@
 
 - [本仓库包含什么？](#本仓库包含什么)
 - [前置条件](#前置条件)
-- [快速开始](#快速开始)
+- [快速部署（Docker Compose）](#快速部署docker-compose)
+- [本地调试](#本地调试)
+- [Smoke Test](#smoke-test)
+- [常见故障（502、404、权限）](#常见故障502404权限)
 - [一键命令](#一键命令)
-- [验收脚本](#验收脚本)
 - [部署](#部署)
 - [API 说明与示例 curl](#api-说明与示例-curl)
 - [后台使用](#后台使用)
@@ -38,28 +40,41 @@
 2. **服务器环境**：Linux (推荐 Ubuntu 20.04 及以上)，已安装 Docker 与 Docker Compose。
 3. **SSL 证书**：建议通过 Cloudflare 或 ACME 自动签发。
 
-## 快速开始
+## 快速部署（Docker Compose）
+
+单机部署时仅需一条命令即可构建并启动反向代理与 FastAPI 后端：
 
 ```bash
-# 1. 克隆仓库
-$ git clone git@github.com:your-org/yetla.git
-$ cd yetla
-
-# 2. 启动本地演示环境
-$ docker compose up --build
-
-# 3. 在本机 hosts 文件添加子域映射（示例）
-127.0.0.1 yet.la
-127.0.0.1 api.yet.la
-127.0.0.1 console.yet.la
-
-# 4. 浏览器访问
-http://api.yet.la:8080      # 代理到 apps/api
-http://console.yet.la:8080  # 命中 302 并回到 https://console.yet.la
-http://yet.la:8080          # 默认站点
+docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
 ```
 
-FastAPI 接口可通过 `http://localhost:8000/routes` 查看当前子域映射。
+命令执行后将暴露 `http://127.0.0.1:8080`（Nginx 反代）与 `http://127.0.0.1:8000`（FastAPI 服务），默认凭据位于 `.env.example`。
+
+## 本地调试
+
+若想在不启动容器的情况下调试后端，可直接在虚拟环境内运行 Uvicorn：
+
+```bash
+uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+调试模式下依然会读取 `.env` 中的 `ADMIN_USER` / `ADMIN_PASS`，确保你为管理接口提供 Basic Auth 凭据。
+
+## Smoke Test
+
+容器启动后可使用脚本快速验收核心链路：
+
+```bash
+bash scripts/smoke.sh
+```
+
+脚本会自动拉起 Compose 服务、调用 `/routes` 验证 200 响应，并在 Basic Auth 下创建短链后检查 `http://127.0.0.1:8080/r/hi` 是否返回 30x 与正确的 `Location` 头，全部通过时输出 `SMOKE OK`。
+
+## 常见故障（502、404、权限）
+
+- **502 Bad Gateway**：通常为后端未就绪或认证失败，可先执行 `docker compose logs backend --tail 50` 查看 FastAPI 日志。
+- **404 Not Found**：确认短链/子域是否写入数据库，或使用 `curl -H "Host: foo.yet.la" http://127.0.0.1:8080/` 复现以便排查。
+- **401/403 权限问题**：确保 `.env` 中的凭据与请求一致，可通过 `curl -u admin:change_me_now http://127.0.0.1:8000/api/links` 进行快速验证。
 
 ## 一键命令
 
@@ -84,31 +99,6 @@ make shell
 
 上述命令默认读取 `docker-compose.yml` 与 `docker-compose.override.yml`，方便在开发机快速验证路由配置与接口健康状况。
 
-## 验收脚本
-
-仓库提供了 `scripts/smoke.sh` 用于在本地或 CI 环境快速验收接口是否可用。脚本会：
-
-- 调用 `POST /api/links` 创建短链并校验 `/r/{code}` 返回 302 及正确的 `Location` 头；
-- 调用 `POST /api/subdomains` 创建子域跳转并通过自定义 `Host` 头确认 301/302 跳转；
-- 清理新建的短链与子域记录，保持数据库整洁。
-
-在运行脚本前请确保服务已启动（默认监听 `http://localhost:8000`），并根据需要调整以下环境变量：
-
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `BASE_URL` | `http://localhost:8000` | FastAPI 服务地址 |
-| `ADMIN_USER` / `ADMIN_PASS` | `admin` / `admin` | 受保护接口的 HTTP Basic 凭据 |
-| `SMOKE_SUBDOMAIN_CODE` | `302` | 创建子域时使用的跳转状态码 |
-
-执行示例：
-
-```bash
-$ bash scripts/smoke.sh
-[2024-01-01 12:00:00] 验收脚本启动，目标服务：http://localhost:8000
-[2024-01-01 12:00:00] 健康检查通过
-[2024-01-01 12:00:01] 所有验收步骤完成
-```
-
 ## 部署
 
 默认的 `docker-compose.yml` 仍保留示例站点路由，方便验证静态 upstream 的写法。若要让容器化 Nginx 统一代理到 FastAPI backend，只需保留同目录下的 `docker-compose.override.yml`：
@@ -128,10 +118,10 @@ $ bash scripts/smoke.sh
 | GET | `/routes` | 查询所有子域跳转规则 | 无 | 200 |
 | GET | `/api/links` | 列出短链接 | HTTP Basic | 200 |
 | POST | `/api/links` | 新增短链接（`code` 为空时自动生成） | HTTP Basic | 201 / 409 |
-| DELETE | `/api/links/{id}` | 删除短链接 | HTTP Basic | 204 / 404 |
+| DELETE | `/api/links/{id}` | 删除短链接 | HTTP Basic | 200 / 404 |
 | GET | `/api/subdomains` | 列出子域跳转 | HTTP Basic | 200 |
 | POST | `/api/subdomains` | 新增子域跳转（`host` 为完整域名） | HTTP Basic | 201 / 409 |
-| DELETE | `/api/subdomains/{id}` | 删除子域跳转 | HTTP Basic | 204 / 404 |
+| DELETE | `/api/subdomains/{id}` | 删除子域跳转 | HTTP Basic | 200 / 404 |
 | GET | `/r/{code}` | 短链接跳转并累积访问量 | 无 | 302 / 404 |
 
 > 🔐 受保护接口通过 HTTP Basic 认证，默认凭据来自 `ADMIN_USER` / `ADMIN_PASS` 环境变量（若未配置则为 `admin/admin`）。

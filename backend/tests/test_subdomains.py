@@ -40,7 +40,7 @@ def test_delete_subdomain(client: "SimpleClient") -> None:
     ).json()
 
     deleted = client.delete(f"/api/subdomains/{created['id']}", auth=ADMIN_AUTH)
-    assert deleted.status_code == 204
+    assert deleted.status_code == 200
 
     fallback = client.get("/", headers={"host": "remove.test"}, follow_redirects=False)
     assert fallback.status_code == 404
