@@ -35,8 +35,9 @@
 ## 前置条件
 
 1. **域名解析**：在 DNS 服务商（如 Cloudflare）设置 `*.yet.la` 指向当前服务器。
-2. **服务器环境**：Linux (推荐 Ubuntu 20.04 及以上)，已安装 Docker 与 Docker Compose。
-3. **SSL 证书**：建议通过 Cloudflare 或 ACME 自动签发。
+2. **服务器环境**：Linux（推荐 Ubuntu 22.04 LTS），需要 root/sudo 权限安装依赖。
+3. **运行依赖**：`git`、`docker`、`docker compose` 插件、`make`（用于 Makefile 命令）。
+4. **SSL 证书**：建议通过 Cloudflare 或 ACME 自动签发。
 
 ## 快速开始
 
@@ -113,6 +114,92 @@ $ bash scripts/smoke.sh
 
 以下步骤默认在一台满足「[前置条件](#前置条件)」的 Linux 服务器或本地开发机上执行。请按照顺序完成，确保环境与配置完整：
 
+### 在全新 Ubuntu 22.04 VPS 上的完整部署步骤
+
+> ✅ 以下命令均在一台出厂设置的 Ubuntu 22.04 LTS VPS 上验证通过，可复制粘贴执行。
+
+1. **更新软件源并安装 Git（如系统自带可跳过）**
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y git
+   ```
+
+2. **克隆仓库并进入项目目录**
+
+   ```bash
+   git clone https://github.com/your-org/yetla.git
+   cd yetla
+   ```
+
+3. **安装运行依赖（Docker、Docker Compose 插件等）**
+
+   - 推荐运行仓库提供的脚本，一次性完成依赖配置：
+
+     ```bash
+     sudo ./scripts/setup-ubuntu.sh
+     ```
+
+   - 脚本会：
+     - 安装 `ca-certificates`、`curl`、`gnupg`、`git`、`make` 等基础工具；
+     - 添加 Docker 官方源并安装 `docker-ce`、`docker-compose-plugin` 等组件；
+     - 启动并设为开机自启 Docker 服务；
+     - 将当前用户加入 `docker` 用户组（重新登录后即可无 `sudo` 调用 `docker`）。
+
+   - 若无法使用脚本，可参考脚本内容手动执行相同命令。
+
+4. **重新登录或刷新用户组（必要时）**
+
+   ```bash
+   newgrp docker
+   ```
+
+   > 若仍提示「permission denied」，请退出 SSH 后重新登录，再运行后续步骤。
+
+5. **准备环境变量与数据目录**
+
+   ```bash
+   cp .env.example .env
+   nano .env          # 或者使用 vim 等编辑器修改凭据
+   mkdir -p data
+   chmod 700 data
+   ```
+
+   - 建议将 `ADMIN_PASS` 修改为随机高强度密码。
+
+6. **构建并启动容器**
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+7. **验证容器状态与健康检查**
+
+   ```bash
+   docker compose ps
+   curl http://127.0.0.1:8000/healthz
+   curl http://127.0.0.1:8000/routes
+   ```
+
+   - 如需通过 Nginx 转发访问，测试：
+
+     ```bash
+     curl -I -H "Host: yet.la" http://127.0.0.1:8080/
+     ```
+
+8. **（可选）放行防火墙端口**
+
+   ```bash
+   sudo ufw allow 80/tcp
+   sudo ufw allow 443/tcp
+   ```
+
+   根据实际部署情况调整端口与安全策略。
+
+完成以上步骤后，应用应在 `http://服务器IP:8000`（FastAPI）与 `http://服务器IP:8080`（Nginx 演示站点）上可用。
+
+---
+
 1. **准备运行目录**
    - 选择合适的安装路径，例如 `/opt/yetla` 或本地任意工作目录。
    - 确保磁盘剩余空间 ≥ 1 GB，用于容器镜像、日志与 SQLite 数据文件。
@@ -135,7 +222,7 @@ $ bash scripts/smoke.sh
      - `ADMIN_USER` / `ADMIN_PASS`：后台登录与 API 调用使用的 Basic Auth 凭据，推荐设置为长度 ≥ 16 的随机字符串。
      - `BASE_DOMAIN`：需要托管的主域名，例如 `yet.la`，后端将以此生成跳转提示。
      - `SHORT_CODE_LEN`：短链接随机编码长度，可保持默认 `6` 或根据需求调整。
-   - `.env` 会被 Docker Compose 自动加载，**不要**将包含真实凭据的 `.env` 提交到版本库。
+   - `.env` 会被 Docker Compose 自动挂载到容器内，**不要**将包含真实凭据的 `.env` 提交到版本库。
 
 4. **准备数据卷与可选覆盖配置**
    - 项目已包含 `data/` 目录，对应容器内的 `/data`，用于保存 SQLite 数据库和其他持久化文件。首次部署前确认目录存在并具有写权限：
@@ -219,6 +306,8 @@ FastAPI 应用自带一个受 HTTP Basic 保护的管理界面，便于在浏览
 ## API 说明与示例 curl
 
 `backend/app/main.py` 提供了公开与受保护的接口组合：
+
+> ℹ️ 出于安全与路由优先级考虑，FastAPI 默认的 `/docs` 与 `/redoc` 页面已关闭。如需查看 OpenAPI 规范可访问 `/openapi.json`，或直接使用下方示例命令调试。
 
 | Method | Path | 说明 | 认证 | 常见返回码 |
 | --- | --- | --- | --- | --- |
