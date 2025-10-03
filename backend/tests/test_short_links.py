@@ -102,6 +102,8 @@ def test_update_short_link_via_htmx_form(client: "SimpleClient") -> None:
     assert response.status_code == 200
     assert response.headers.get("hx-trigger") == "refresh-links"
     assert "短链已更新" in response.text
+    assert "short-link-row" in response.text
+    assert "hx-swap-oob=\"outerHTML\"" in response.text
 
     listing = client.get("/api/links", auth=ADMIN_AUTH)
     records = listing.json()
