@@ -16,6 +16,11 @@
       crossorigin="anonymous"
       defer
     ></script>
+    <script>
+      document.addEventListener("htmx:configRequest", function (event) {
+        event.detail.withCredentials = true;
+      });
+    </script>
   </head>
   <body class="min-h-full text-slate-800">
     <header class="bg-white shadow">
