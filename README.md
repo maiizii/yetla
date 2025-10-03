@@ -50,6 +50,54 @@ http://yet.la:8080          # 默认站点
 
 FastAPI 接口可通过 `http://localhost:8000/routes` 查看当前子域映射。
 
+## API 说明与示例 curl
+
+`backend/app/main.py` 提供了公开与受保护的接口组合：
+
+| Method | Path | 说明 | 认证 | 常见返回码 |
+| --- | --- | --- | --- | --- |
+| GET | `/healthz` | 健康检查 | 无 | 200 |
+| GET | `/routes` | 查询所有子域跳转规则 | 无 | 200 |
+| GET | `/api/links` | 列出短链接 | HTTP Basic | 200 |
+| POST | `/api/links` | 新增短链接（`code` 为空时自动生成） | HTTP Basic | 201 / 409 |
+| DELETE | `/api/links/{id}` | 删除短链接 | HTTP Basic | 204 / 404 |
+| GET | `/api/subdomains` | 列出子域跳转 | HTTP Basic | 200 |
+| POST | `/api/subdomains` | 新增子域跳转（`host` 为完整域名） | HTTP Basic | 201 / 409 |
+| DELETE | `/api/subdomains/{id}` | 删除子域跳转 | HTTP Basic | 204 / 404 |
+| GET | `/r/{code}` | 短链接跳转并累积访问量 | 无 | 302 / 404 |
+
+> 🔐 受保护接口通过 HTTP Basic 认证，默认凭据来自 `ADMIN_USER` / `ADMIN_PASS` 环境变量（若未配置则为 `admin/admin`）。
+
+以下示例演示常见调用流程（假设服务运行在本地 8000 端口）：
+
+```bash
+# 健康检查与公开路由
+curl http://localhost:8000/healthz
+curl http://localhost:8000/routes
+
+# 创建短链接（code 为空自动生成）、查询并删除
+curl -u admin:admin \
+  -H "Content-Type: application/json" \
+  -d '{"target_url":"https://yet.la/docs"}' \
+  http://localhost:8000/api/links
+curl -u admin:admin http://localhost:8000/api/links
+curl -u admin:admin -X DELETE http://localhost:8000/api/links/1
+
+# 创建子域跳转，随后通过 Host 头验证跳转
+curl -u admin:admin \
+  -H "Content-Type: application/json" \
+  -d '{"host":"docs.yet.la","target_url":"https://yet.la/docs","code":302}' \
+  http://localhost:8000/api/subdomains
+curl -u admin:admin http://localhost:8000/api/subdomains
+curl -I -H "Host: docs.yet.la" http://localhost:8000/
+curl -u admin:admin -X DELETE http://localhost:8000/api/subdomains/1
+
+# 短链接跳转与命中次数（将 <code> 替换为查询结果中的实际值）
+curl -I http://localhost:8000/r/<code>
+```
+
+> 在上述示例中，`curl -I -H "Host: docs.yet.la" http://localhost:8000/` 会命中通配路由并返回数据库配置的 301/302 跳转。
+
 ## 环境变量
 
 项目根目录提供了示例文件 [`.env.example`](.env.example)，可复制为 `.env` 并根据实际情况调整：
@@ -61,7 +109,7 @@ FastAPI 接口可通过 `http://localhost:8000/routes` 查看当前子域映射�
 | `BASE_DOMAIN` | 系统管理的基础域名，例如 `yet.la`。 |
 | `SHORT_CODE_LEN` | 生成短链接时的默认编码长度，默认 `6`。 |
 
-当前版本尚未读取这些值，但通过 `.env` 预留了部署所需的配置位点，方便后续迭代直接启用。
+当前版本会读取 `ADMIN_USER` / `ADMIN_PASS` 作为 Basic Auth 凭据，并使用 `SHORT_CODE_LEN` 控制自动生成短码长度；其余变量仍预留以便后续扩展。
 
 ## 数据存储
 
