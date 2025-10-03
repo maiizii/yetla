@@ -65,8 +65,26 @@
     return Object.assign(headers, extra || {});
   }
 
+  function toAbsoluteUrl(url) {
+    if (!url) {
+      return url;
+    }
+
+    try {
+      const base = `${window.location.protocol}//${window.location.host}`;
+      return new URL(url, base).toString();
+    } catch (error) {
+      console.warn("Failed to construct absolute URL", url, error);
+      return url;
+    }
+  }
+
   async function fetchFragment(url, options) {
-    const response = await fetch(url, Object.assign({ credentials: "include" }, options));
+    const absoluteUrl = toAbsoluteUrl(url);
+    const response = await fetch(
+      absoluteUrl,
+      Object.assign({ credentials: "include" }, options),
+    );
     const text = await response.text();
     return { response, text };
   }
