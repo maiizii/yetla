@@ -1,18 +1,36 @@
-"""FastAPI 应用，提供 Nginx 子域映射的示例接口。"""
+"""FastAPI 应用，提供 yet.la 的短链接与子域跳转管理接口。"""
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+import os
+import secrets
+import string
+from typing import Generator
 
-from .models import Base, engine
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from .models import Base, SessionLocal, ShortLink, SubdomainRedirect, engine
+from .schemas import (
+    ShortLink as ShortLinkSchema,
+    ShortLinkCreate,
+    SubdomainRedirect as SubdomainRedirectSchema,
+    SubdomainRedirectCreate,
+)
+
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASS = os.getenv("ADMIN_PASS", "admin")
+SHORT_CODE_LEN = int(os.getenv("SHORT_CODE_LEN", "6"))
+MAX_CODE_ATTEMPTS = 10
+
+security = HTTPBasic()
 
 app = FastAPI(
-    title="Yetla Subdomain Router API",
-    description=(
-        "演示如何在后端维护子域与上游服务的映射，并暴露给基础设施层（如"
-        " Nginx 模板渲染或自动化脚本）。"
-    ),
-    version="0.1.0",
+    title="Yetla Redirect API",
+    description="管理短链接与子域跳转的受保护接口，并提供公共重定向入口。",
+    version="0.2.0",
 )
 
 
@@ -23,50 +41,218 @@ def ensure_tables() -> None:
     Base.metadata.create_all(bind=engine)
 
 
-class Route(BaseModel):
-    """子域映射的展示模型。"""
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """为 404/409 返回统一结构，方便调用方解析。"""
 
-    subdomain: str = Field(..., description="子域名，省略主域部分，例如 api")
-    upstream: str = Field(..., description="Nginx upstream 名称或目标地址")
-    description: str | None = Field(None, description="用途说明，方便运维辨识")
-    permanent: bool = Field(
-        default=True,
-        description="是否推荐使用 301 永久重定向；为 False 时多用于临时跳转",
-    )
+    if exc.status_code in {status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT}:
+        return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
 
-# 在实际系统中，这些数据应来自数据库。
-ROUTES: dict[str, Route] = {
-    "api": Route(
-        subdomain="api",
-        upstream="app_api",
-        description="供客户端与第三方调用的 API 服务",
-    ),
-    "console": Route(
-        subdomain="console",
-        upstream="app_console",
-        description="内部运营控制台",
-        permanent=False,
-    ),
-}
+def get_db() -> Generator[Session, None, None]:
+    """数据库 Session 依赖。"""
 
-
-def _get_route_or_404(subdomain: str) -> Route:
+    db = SessionLocal()
     try:
-        return ROUTES[subdomain]
-    except KeyError as exc:  # pragma: no cover - 极简示例不接入测试框架
-        raise HTTPException(status_code=404, detail="未找到子域映射") from exc
+        yield db
+    finally:
+        db.close()
 
 
-@app.get("/routes", response_model=list[Route])
-def list_routes() -> list[Route]:
-    """返回所有静态配置的子域映射。"""
+def require_basic_auth(credentials: HTTPBasicCredentials = Depends(security)) -> None:
+    """通过 HTTP Basic 认证保护敏感接口。"""
 
-    return sorted(ROUTES.values(), key=lambda route: route.subdomain)
+    correct_username = secrets.compare_digest(credentials.username or "", ADMIN_USER or "")
+    correct_password = secrets.compare_digest(credentials.password or "", ADMIN_PASS or "")
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="认证失败",
+            headers={"WWW-Authenticate": "Basic"},
+        )
 
 
-@app.get("/routes/{subdomain}", response_model=Route)
-def get_route(subdomain: str) -> Route:
-    """查询单个子域配置。"""
+def _generate_unique_code(db: Session, length: int) -> str:
+    """生成唯一的短链接 code。"""
 
-    return _get_route_or_404(subdomain)
+    alphabet = string.ascii_letters + string.digits
+    for _ in range(MAX_CODE_ATTEMPTS):
+        candidate = "".join(secrets.choice(alphabet) for _ in range(length))
+        exists = db.scalar(select(ShortLink).where(ShortLink.code == candidate))
+        if not exists:
+            return candidate
+    raise HTTPException(status.HTTP_409_CONFLICT, detail="无法生成唯一的短链接编码")
+
+
+def _compose_redirect_target(base_url: str, path: str, query: str) -> str:
+    """组合目标 URL，将当前请求的 path/query 透传给上游。"""
+
+    destination = base_url.rstrip("/")
+    normalized_path = path.lstrip("/")
+    if normalized_path:
+        destination = f"{destination}/{normalized_path}"
+    if query:
+        separator = "&" if "?" in destination else "?"
+        destination = f"{destination}{separator}{query}"
+    return destination
+
+
+@app.get("/healthz")
+def healthz() -> dict[str, bool]:
+    """健康检查端点。"""
+
+    return {"ok": True}
+
+
+@app.get("/routes", response_model=list[SubdomainRedirectSchema])
+def list_routes(db: Session = Depends(get_db)) -> list[SubdomainRedirect]:
+    """公共接口：返回全部子域跳转规则。"""
+
+    redirects = db.scalars(select(SubdomainRedirect).order_by(SubdomainRedirect.host)).all()
+    return list(redirects)
+
+
+@app.get(
+    "/api/links",
+    response_model=list[ShortLinkSchema],
+    dependencies=[Depends(require_basic_auth)],
+)
+def list_short_links(db: Session = Depends(get_db)) -> list[ShortLink]:
+    """列出所有短链接。"""
+
+    links = db.scalars(select(ShortLink).order_by(ShortLink.created_at.desc())).all()
+    return list(links)
+
+
+@app.post(
+    "/api/links",
+    response_model=ShortLinkSchema,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_basic_auth)],
+)
+def create_short_link(payload: ShortLinkCreate, db: Session = Depends(get_db)) -> ShortLink:
+    """创建短链接，code 可空自动生成。"""
+
+    code = payload.code
+    if code:
+        exists = db.scalar(select(ShortLink).where(ShortLink.code == code))
+        if exists:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="短链接编码已存在")
+    else:
+        code = _generate_unique_code(db, SHORT_CODE_LEN)
+
+    short_link = ShortLink(code=code, target_url=payload.target_url)
+    db.add(short_link)
+    db.commit()
+    db.refresh(short_link)
+    return short_link
+
+
+@app.delete(
+    "/api/links/{link_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_basic_auth)],
+)
+def delete_short_link(link_id: int, db: Session = Depends(get_db)) -> None:
+    """删除指定短链接。"""
+
+    short_link = db.get(ShortLink, link_id)
+    if short_link is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
+    db.delete(short_link)
+    db.commit()
+
+
+@app.get(
+    "/api/subdomains",
+    response_model=list[SubdomainRedirectSchema],
+    dependencies=[Depends(require_basic_auth)],
+)
+def list_subdomains(db: Session = Depends(get_db)) -> list[SubdomainRedirect]:
+    """列出所有子域跳转规则。"""
+
+    redirects = db.scalars(
+        select(SubdomainRedirect).order_by(SubdomainRedirect.created_at.desc())
+    ).all()
+    return list(redirects)
+
+
+@app.post(
+    "/api/subdomains",
+    response_model=SubdomainRedirectSchema,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_basic_auth)],
+)
+def create_subdomain(
+    payload: SubdomainRedirectCreate, db: Session = Depends(get_db)
+) -> SubdomainRedirect:
+    """创建子域跳转规则，Host 为完整域名。"""
+
+    host = payload.host
+    existing = db.scalar(select(SubdomainRedirect).where(SubdomainRedirect.host == host))
+    if existing:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="子域跳转已存在")
+
+    redirect = SubdomainRedirect(host=host, target_url=payload.target_url, code=payload.code)
+    db.add(redirect)
+    db.commit()
+    db.refresh(redirect)
+    return redirect
+
+
+@app.delete(
+    "/api/subdomains/{redirect_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_basic_auth)],
+)
+def delete_subdomain(redirect_id: int, db: Session = Depends(get_db)) -> None:
+    """删除指定子域跳转。"""
+
+    redirect = db.get(SubdomainRedirect, redirect_id)
+    if redirect is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
+    db.delete(redirect)
+    db.commit()
+
+
+@app.get("/admin", dependencies=[Depends(require_basic_auth)])
+def admin_info() -> dict[str, str]:
+    """受保护的占位接口。"""
+
+    return {"message": "authenticated"}
+
+
+@app.get("/r/{code}")
+def redirect_short_link(code: str, db: Session = Depends(get_db)) -> RedirectResponse:
+    """公共短链接跳转入口，同时累计访问次数。"""
+
+    short_link = db.scalar(select(ShortLink).where(ShortLink.code == code))
+    if short_link is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
+
+    short_link.hits += 1
+    db.add(short_link)
+    db.commit()
+
+    return RedirectResponse(short_link.target_url, status_code=status.HTTP_302_FOUND)
+
+
+@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
+def catch_all(
+    request: Request, path: str, db: Session = Depends(get_db)
+) -> RedirectResponse | PlainTextResponse:
+    """根据 Host 匹配子域跳转规则，否则返回 404 文本。"""
+
+    host = (request.headers.get("host") or "").strip().lower()
+    if not host:
+        return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
+
+    redirect = db.scalar(select(SubdomainRedirect).where(SubdomainRedirect.host == host))
+    if redirect is None:
+        return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
+
+    destination = _compose_redirect_target(
+        redirect.target_url, path=path, query=request.url.query or ""
+    )
+    return RedirectResponse(destination, status_code=redirect.code)
