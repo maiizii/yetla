@@ -6,6 +6,7 @@ import secrets
 import string
 
 from typing import Any
+from urllib.parse import parse_qsl
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
@@ -29,6 +30,8 @@ app = FastAPI(
     title="Yetla Redirect API",
     description="管理短链接与子域跳转的受保护接口，并提供公共重定向入口。",
     version="0.2.0",
+    docs_url=None,
+    redoc_url=None,
 )
 
 
@@ -49,6 +52,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     """为 404/409 返回统一结构，方便调用方解析。"""
 
     hx_request = request.headers.get("hx-request") == "true"
+    headers = exc.headers or None
     if exc.status_code in {status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT}:
         if hx_request:
             return HTMLResponse(
@@ -58,8 +62,9 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
                     "</div>"
                 ),
                 status_code=exc.status_code,
+                headers=headers,
             )
-        return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+        return JSONResponse({"error": exc.detail}, status_code=exc.status_code, headers=headers)
     if exc.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY and hx_request:
         return HTMLResponse(
             (
@@ -68,8 +73,9 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
                 "</div>"
             ),
             status_code=exc.status_code,
+            headers=headers,
         )
-    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=headers)
 def _generate_unique_code(db: Session, length: int) -> str:
     """生成唯一的短链接 code。"""
 
@@ -95,6 +101,36 @@ def _compose_redirect_target(base_url: str, path: str, query: str) -> str:
     return destination
 
 
+def _decode_urlencoded_form(body: bytes, charset: str = "utf-8") -> dict[str, Any]:
+    """解析 application/x-www-form-urlencoded 请求体。"""
+
+    try:
+        text = body.decode(charset)
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="表单内容解码失败") from exc
+    return {key: value for key, value in parse_qsl(text, keep_blank_values=False)}
+
+
+async def _read_form_data(request: Request, content_type: str) -> dict[str, Any]:
+    """读取表单数据，在缺失 python-multipart 时优雅降级。"""
+
+    if content_type.startswith("application/x-www-form-urlencoded"):
+        charset = "utf-8"
+        if "charset=" in content_type:
+            charset = content_type.split("charset=")[-1].split(";")[0].strip() or "utf-8"
+        body = await request.body()
+        return _decode_urlencoded_form(body, charset=charset)
+
+    try:
+        form = await request.form()
+    except AssertionError as exc:  # python-multipart 未安装
+        raise HTTPException(
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="缺少 python-multipart 依赖，无法解析表单上传",
+        ) from exc
+    return {key: value for key, value in form.multi_items()}
+
+
 async def _parse_short_link_payload(request: Request) -> ShortLinkCreate:
     """解析短链请求载荷，兼容 JSON 与表单提交。"""
 
@@ -103,8 +139,7 @@ async def _parse_short_link_payload(request: Request) -> ShortLinkCreate:
     if content_type.startswith("application/json"):
         data = await request.json()
     else:
-        form = await request.form()
-        data = {key: value for key, value in form.multi_items()}
+        data = await _read_form_data(request, content_type)
 
     try:
         return ShortLinkCreate.model_validate(data)
@@ -120,8 +155,7 @@ async def _parse_subdomain_payload(request: Request) -> SubdomainRedirectCreate:
     if content_type.startswith("application/json"):
         data = await request.json()
     else:
-        form = await request.form()
-        data = {key: value for key, value in form.multi_items()}
+        data = await _read_form_data(request, content_type)
 
     try:
         return SubdomainRedirectCreate.model_validate(data)
@@ -225,7 +259,6 @@ async def create_short_link(
 
 @app.delete(
     "/api/links/{link_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_basic_auth)],
 )
 def delete_short_link(
@@ -233,7 +266,7 @@ def delete_short_link(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-) -> Response | HTMLResponse:
+) -> Response:
     """删除指定短链接。"""
 
     short_link = db.get(ShortLink, link_id)
@@ -314,7 +347,6 @@ async def create_subdomain(
 
 @app.delete(
     "/api/subdomains/{redirect_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_basic_auth)],
 )
 def delete_subdomain(
@@ -322,7 +354,7 @@ def delete_subdomain(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-) -> Response | HTMLResponse:
+) -> Response:
     """删除指定子域跳转。"""
 
     redirect = db.get(SubdomainRedirect, redirect_id)
@@ -365,7 +397,7 @@ def redirect_short_link(code: str, db: Session = Depends(get_db)) -> RedirectRes
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
 def catch_all(
     request: Request, path: str, db: Session = Depends(get_db)
-) -> RedirectResponse | PlainTextResponse:
+) -> Response:
     """根据 Host 匹配子域跳转规则，否则返回 404 文本。"""
 
     host = (request.headers.get("host") or "").strip().lower()
