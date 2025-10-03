@@ -232,7 +232,8 @@ $ bash scripts/smoke.sh
      chmod 700 data
      ```
 
-   - 如果需要让容器化 Nginx 统一代理到 FastAPI，可保留 `docker-compose.override.yml` 以及 `infra/nginx/conf.d/yetla.upstream.conf`，其中已内置监听 `yet.la` 与所有子域的示例配置。
+  - Nginx 默认使用 `infra/nginx/conf.d/subdomains.conf`，无需再挂载 `apps/api`、`apps/console` 等静态目录。
+  - 如果需要让容器化 Nginx 统一代理到 FastAPI，可保留 `docker-compose.override.yml` 以及 `infra/nginx/conf.d/yetla.upstream.conf`，其中已内置监听 `yet.la` 与所有子域的示例配置。
    - 在生产环境中，可根据实际域名与证书路径调整 `infra/nginx` 下的配置文件，然后通过挂载覆盖默认配置。
 
 5. **启动服务**
