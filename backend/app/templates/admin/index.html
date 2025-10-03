@@ -60,7 +60,7 @@
             hx-trigger="submit"
             hx-target="#link-feedback"
             hx-swap="innerHTML"
-            hx-on::afterRequest="if(event.detail.successful){ htmx.trigger(document.body, 'refresh-links') }"
+            hx-on::afterRequest="if(event.detail.successful){ this.reset(); htmx.trigger(document.body, 'refresh-links') }"
           >
             <div class="grid gap-4 sm:grid-cols-2">
               <div>
@@ -139,7 +139,7 @@
             hx-trigger="submit"
             hx-target="#subdomain-feedback"
             hx-swap="innerHTML"
-            hx-on::afterRequest="if(event.detail.successful){ htmx.trigger(document.body, 'refresh-subdomains') }"
+            hx-on::afterRequest="if(event.detail.successful){ this.reset(); htmx.trigger(document.body, 'refresh-subdomains') }"
           >
             <div class="grid gap-4 sm:grid-cols-2">
               <div>

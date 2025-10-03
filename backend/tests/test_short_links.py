@@ -86,6 +86,29 @@ def test_delete_short_link_via_htmx_button(client: "SimpleClient") -> None:
     assert "短链已删除" in response.text
 
 
+def test_update_short_link_via_htmx_form(client: "SimpleClient") -> None:
+    created = client.post(
+        "/api/links",
+        json={"target_url": "https://example.com/edit", "code": "orig"},
+        auth=ADMIN_AUTH,
+    ).json()
+
+    response = client.put(
+        f"/api/links/{created['id']}",
+        data={"code": "updated", "target_url": "https://example.com/new"},
+        headers={"hx-request": "true"},
+        auth=ADMIN_AUTH,
+    )
+    assert response.status_code == 200
+    assert response.headers.get("hx-trigger") == "refresh-links"
+    assert "短链已更新" in response.text
+
+    listing = client.get("/api/links", auth=ADMIN_AUTH)
+    records = listing.json()
+    assert records[0]["code"] == "updated"
+    assert records[0]["target_url"] == "https://example.com/new"
+
+
 def test_admin_short_link_partials(client: "SimpleClient") -> None:
     client.post(
         "/api/links",

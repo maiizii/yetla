@@ -20,8 +20,10 @@ from .models import Base, ShortLink, SubdomainRedirect, engine
 from .schemas import (
     ShortLink as ShortLinkSchema,
     ShortLinkCreate,
+    ShortLinkUpdate,
     SubdomainRedirect as SubdomainRedirectSchema,
     SubdomainRedirectCreate,
+    SubdomainRedirectUpdate,
 )
 from pydantic import ValidationError
 
@@ -169,6 +171,22 @@ async def _parse_short_link_payload(request: Request) -> ShortLinkCreate:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
 
 
+async def _parse_short_link_update_payload(request: Request) -> ShortLinkUpdate:
+    """解析短链更新请求，兼容 JSON 与表单提交。"""
+
+    content_type = request.headers.get("content-type", "").lower()
+    data: dict[str, Any]
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        data = await _read_form_data(request, content_type)
+
+    try:
+        return ShortLinkUpdate.model_validate(data)
+    except ValidationError as exc:  # pragma: no cover - FastAPI 将统一处理
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+
 async def _parse_subdomain_payload(request: Request) -> SubdomainRedirectCreate:
     """解析子域跳转请求载荷，支持 JSON 与表单提交。"""
 
@@ -181,6 +199,24 @@ async def _parse_subdomain_payload(request: Request) -> SubdomainRedirectCreate:
 
     try:
         return SubdomainRedirectCreate.model_validate(data)
+    except ValidationError as exc:  # pragma: no cover - FastAPI 将统一处理
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+
+async def _parse_subdomain_update_payload(
+    request: Request,
+) -> SubdomainRedirectUpdate:
+    """解析子域更新请求，支持 JSON 与表单提交。"""
+
+    content_type = request.headers.get("content-type", "").lower()
+    data: dict[str, Any]
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        data = await _read_form_data(request, content_type)
+
+    try:
+        return SubdomainRedirectUpdate.model_validate(data)
     except ValidationError as exc:  # pragma: no cover - FastAPI 将统一处理
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
 
@@ -329,6 +365,52 @@ def delete_short_link(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@app.put(
+    "/api/links/{link_id}",
+    response_model=ShortLinkSchema,
+    dependencies=[Depends(require_basic_auth)],
+)
+async def update_short_link(
+    link_id: int,
+    request: Request,
+    response: Response,
+    payload: ShortLinkUpdate = Depends(_parse_short_link_update_payload),
+    db: Session = Depends(get_db),
+) -> ShortLink | HTMLResponse:
+    """更新指定短链接的编码或目标地址。"""
+
+    short_link = db.get(ShortLink, link_id)
+    if short_link is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
+
+    if payload.code != short_link.code:
+        exists = db.scalar(select(ShortLink).where(ShortLink.code == payload.code))
+        if exists:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="短链接编码已存在")
+
+    short_link.code = payload.code
+    short_link.target_url = payload.target_url
+    db.add(short_link)
+    _commit_session(db, conflict_detail="短链接编码已存在")
+    db.refresh(short_link)
+
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = (
+            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
+            "短链已更新"
+            "</div>"
+        )
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_200_OK,
+            headers={"HX-Trigger": "refresh-links"},
+        )
+
+    response.headers["HX-Trigger"] = "refresh-links"
+    return short_link
+
+
 @app.get(
     "/api/subdomains",
     response_model=list[SubdomainRedirectSchema],
@@ -416,6 +498,56 @@ def delete_subdomain(
 
     response.headers["HX-Trigger"] = "refresh-subdomains"
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.put(
+    "/api/subdomains/{redirect_id}",
+    response_model=SubdomainRedirectSchema,
+    dependencies=[Depends(require_basic_auth)],
+)
+async def update_subdomain(
+    redirect_id: int,
+    request: Request,
+    response: Response,
+    payload: SubdomainRedirectUpdate = Depends(_parse_subdomain_update_payload),
+    db: Session = Depends(get_db),
+) -> SubdomainRedirect | HTMLResponse:
+    """更新子域跳转规则。"""
+
+    redirect = db.get(SubdomainRedirect, redirect_id)
+    if redirect is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
+
+    normalized_host = payload.host
+    if normalized_host != redirect.host:
+        exists = db.scalar(
+            select(SubdomainRedirect).where(SubdomainRedirect.host == normalized_host)
+        )
+        if exists:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="子域跳转已存在")
+
+    redirect.host = normalized_host
+    redirect.target_url = payload.target_url
+    redirect.code = payload.code
+    db.add(redirect)
+    _commit_session(db, conflict_detail="子域跳转已存在")
+    db.refresh(redirect)
+
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = (
+            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
+            "子域跳转已更新"
+            "</div>"
+        )
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_200_OK,
+            headers={"HX-Trigger": "refresh-subdomains"},
+        )
+
+    response.headers["HX-Trigger"] = "refresh-subdomains"
+    return redirect
 
 
 @app.get("/r/{code}")

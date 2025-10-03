@@ -211,6 +211,26 @@ class SimpleClient:
             follow_redirects=follow_redirects,
         )
 
+    def put(
+        self,
+        url: str,
+        *,
+        json: Any | None = None,
+        data: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+        auth: tuple[str, str] | None = None,
+        follow_redirects: bool = True,
+    ) -> SimpleResponse:
+        return self.request(
+            "PUT",
+            url,
+            headers=headers,
+            json_body=json,
+            data=data,
+            auth=auth,
+            follow_redirects=follow_redirects,
+        )
+
     def delete(
         self,
         url: str,
