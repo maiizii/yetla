@@ -4,6 +4,8 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from .models import Base, engine
+
 app = FastAPI(
     title="Yetla Subdomain Router API",
     description=(
@@ -12,6 +14,13 @@ app = FastAPI(
     ),
     version="0.1.0",
 )
+
+
+@app.on_event("startup")
+def ensure_tables() -> None:
+    """应用启动时自动创建数据库表。"""
+
+    Base.metadata.create_all(bind=engine)
 
 
 class Route(BaseModel):
