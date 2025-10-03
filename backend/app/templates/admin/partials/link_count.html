@@ -1,0 +1,8 @@
+<span
+  id="short-link-count"
+  hx-get="/admin/links/count"
+  hx-trigger="load, refresh-links from:body"
+  hx-swap="outerHTML"
+>
+  {{ count }}
+</span>

@@ -51,3 +51,31 @@ def admin_dashboard(
             "subdomains": subdomains,
         },
     )
+
+
+@router.get("/admin/links/count", response_class=HTMLResponse)
+def short_link_count(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """Return a small fragment containing the current short link count."""
+
+    short_links = _load_short_links(db)
+    return templates.TemplateResponse(
+        "admin/partials/link_count.html",
+        {"request": request, "count": len(short_links)},
+    )
+
+
+@router.get("/admin/links/table", response_class=HTMLResponse)
+def short_link_table(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """Return the short link table fragment for HTMX swaps."""
+
+    short_links = _load_short_links(db)
+    return templates.TemplateResponse(
+        "admin/partials/link_table.html",
+        {"request": request, "short_links": short_links},
+    )
