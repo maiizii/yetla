@@ -50,6 +50,25 @@ http://yet.la:8080          # 默认站点
 
 FastAPI 接口可通过 `http://localhost:8000/routes` 查看当前子域映射。
 
+## 环境变量
+
+项目根目录提供了示例文件 [`.env.example`](.env.example)，可复制为 `.env` 并根据实际情况调整：
+
+| 变量名 | 说明 |
+| --- | --- |
+| `ADMIN_USER` | 后台登录用户名（占位值，后续接入鉴权时使用）。 |
+| `ADMIN_PASS` | 后台登录密码。 |
+| `BASE_DOMAIN` | 系统管理的基础域名，例如 `yet.la`。 |
+| `SHORT_CODE_LEN` | 生成短链接时的默认编码长度，默认 `6`。 |
+
+当前版本尚未读取这些值，但通过 `.env` 预留了部署所需的配置位点，方便后续迭代直接启用。
+
+## 数据存储
+
+- 后端默认使用 SQLite，数据库文件位于容器内的 `/data/data.db`。
+- `docker-compose.yml` 将仓库根目录的 `./data` 映射到容器 `/data`，首次启动 FastAPI 时会自动创建数据库文件和所需表结构（`subdomain_redirects`、`short_links`）。
+- 若需备份或迁移，可直接复制 `data/data.db`。
+
 ## 部署建议
 
 1. **自动生成配置**：未来可由后端根据数据库记录渲染 Nginx 模板，再通过 CI/CD 分发。
