@@ -1,0 +1,2 @@
+FROM nginx:1.25-alpine
+RUN mkdir -p /usr/share/nginx/html/api /usr/share/nginx/html/console /usr/share/nginx/html/default

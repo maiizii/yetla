@@ -225,7 +225,7 @@ async def create_short_link(
 
 @app.delete(
     "/api/links/{link_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_basic_auth)],
 )
 def delete_short_link(
@@ -233,7 +233,7 @@ def delete_short_link(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-) -> Response | HTMLResponse:
+) -> Response:
     """删除指定短链接。"""
 
     short_link = db.get(ShortLink, link_id)
@@ -254,7 +254,7 @@ def delete_short_link(
             headers={"HX-Trigger": "refresh-links"},
         )
     response.headers["HX-Trigger"] = "refresh-links"
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(status_code=status.HTTP_200_OK)
 
 
 @app.get(
@@ -314,7 +314,7 @@ async def create_subdomain(
 
 @app.delete(
     "/api/subdomains/{redirect_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_basic_auth)],
 )
 def delete_subdomain(
@@ -322,7 +322,7 @@ def delete_subdomain(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-) -> Response | HTMLResponse:
+) -> Response:
     """删除指定子域跳转。"""
 
     redirect = db.get(SubdomainRedirect, redirect_id)
@@ -344,7 +344,7 @@ def delete_subdomain(
         )
 
     response.headers["HX-Trigger"] = "refresh-subdomains"
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(status_code=status.HTTP_200_OK)
 
 
 @app.get("/r/{code}")
@@ -365,7 +365,7 @@ def redirect_short_link(code: str, db: Session = Depends(get_db)) -> RedirectRes
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
 def catch_all(
     request: Request, path: str, db: Session = Depends(get_db)
-) -> RedirectResponse | PlainTextResponse:
+) -> Response:
     """根据 Host 匹配子域跳转规则，否则返回 404 文本。"""
 
     host = (request.headers.get("host") or "").strip().lower()
