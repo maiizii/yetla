@@ -12,7 +12,7 @@ from urllib.parse import parse_qsl
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .deps import get_db, require_basic_auth
@@ -85,7 +85,19 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
             status_code=exc.status_code,
             headers=headers,
         )
+    if hx_request:
+        return HTMLResponse(
+            (
+                "<div class=\"rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700\">"
+                f"{exc.detail}"
+                "</div>"
+            ),
+            status_code=exc.status_code,
+            headers=headers,
+        )
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=headers)
+
+
 def _generate_unique_code(db: Session, length: int) -> str:
     """生成唯一的短链接 code。"""
 
@@ -197,6 +209,23 @@ def _format_validation_errors(detail: Any) -> str:
     return str(detail)
 
 
+def _commit_session(db: Session, conflict_detail: str | None = None) -> None:
+    """提交当前事务并在失败时转换为 HTTP 错误。"""
+
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        detail = conflict_detail or "唯一约束冲突"
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=detail) from exc
+    except SQLAlchemyError as exc:  # pragma: no cover - 依赖数据库环境
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="数据库写入失败，请稍后再试",
+        ) from exc
+
+
 @app.get("/healthz")
 def healthz() -> dict[str, bool]:
     """健康检查端点。"""
@@ -248,7 +277,7 @@ async def create_short_link(
 
     short_link = ShortLink(code=code, target_url=payload.target_url)
     db.add(short_link)
-    db.commit()
+    _commit_session(db, conflict_detail="短链接编码已存在")
     db.refresh(short_link)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
@@ -283,7 +312,7 @@ def delete_short_link(
     if short_link is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
     db.delete(short_link)
-    db.commit()
+    _commit_session(db)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
         message = (
@@ -335,7 +364,7 @@ async def create_subdomain(
 
     redirect = SubdomainRedirect(host=host, target_url=payload.target_url, code=payload.code)
     db.add(redirect)
-    db.commit()
+    _commit_session(db, conflict_detail="子域跳转已存在")
     db.refresh(redirect)
 
     hx_request = request.headers.get("hx-request") == "true"
@@ -371,7 +400,7 @@ def delete_subdomain(
     if redirect is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
     db.delete(redirect)
-    db.commit()
+    _commit_session(db)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
         message = (
@@ -399,7 +428,7 @@ def redirect_short_link(code: str, db: Session = Depends(get_db)) -> RedirectRes
 
     short_link.hits += 1
     db.add(short_link)
-    db.commit()
+    _commit_session(db)
 
     return RedirectResponse(short_link.target_url, status_code=status.HTTP_302_FOUND)
 
