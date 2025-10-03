@@ -164,8 +164,14 @@
 
     if (!useFallback) {
       document.body.addEventListener("htmx:afterRequest", (event) => {
-        const { successful } = event.detail || {};
-        if (!successful) {
+        const detail = event.detail || {};
+        const { successful, xhr } = detail;
+        const status = xhr && typeof xhr.status === "number" ? xhr.status : 0;
+        const isSuccessful =
+          typeof successful === "boolean"
+            ? successful
+            : status >= 200 && status < 400;
+        if (!isSuccessful) {
           return;
         }
         const source = event.target;

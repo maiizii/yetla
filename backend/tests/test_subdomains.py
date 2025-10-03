@@ -14,6 +14,7 @@ def test_create_subdomain(client: "SimpleClient") -> None:
     assert payload["host"] == "docs.test"
     assert payload["target_url"] == "https://example.com/docs"
     assert payload["code"] == 301
+    assert payload["hits"] == 0
 
 
 def test_create_subdomain_conflict(client: "SimpleClient") -> None:
@@ -96,6 +97,27 @@ def test_host_redirect_status_codes(client: "SimpleClient") -> None:
         temporary.headers["location"]
         == "https://www.example.com/docs?id=1"
     )
+
+
+def test_subdomain_redirect_increments_hits(client: "SimpleClient") -> None:
+    client.post(
+        "/api/subdomains",
+        json={"host": "count.test", "target_url": "https://example.com/hits"},
+        auth=ADMIN_AUTH,
+    )
+
+    for _ in range(3):
+        response = client.get(
+            "/path",
+            headers={"host": "count.test"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+    listing = client.get("/api/subdomains", auth=ADMIN_AUTH)
+    assert listing.status_code == 200
+    record = listing.json()[0]
+    assert record["hits"] == 3
 
 
 def test_host_redirect_not_found(client: "SimpleClient") -> None:

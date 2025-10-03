@@ -93,7 +93,7 @@ make shell
 
 `scripts/smoke.sh` 可用于回归验证 FastAPI 接口：
 
-- 创建短链并确认 `/r/{code}` 返回 302 与正确 `Location`；
+- 创建短链并确认 `/{code}` 返回 302 与正确 `Location`；
 - 创建子域跳转并使用自定义 `Host` 验证 3xx；
 - 用完后自动清理。
 
@@ -249,7 +249,7 @@ server {
 ### 访客访问
 
 - `https://yet.la/`：根据子域匹配结果返回重定向或 404 文本。
-- `https://yet.la/r/<code>`：短链接入口，命中后累积访问次数。
+- `https://yet.la/<code>`：短链接入口，命中后累积访问次数。
 
 ## API 说明与示例 curl
 
@@ -265,7 +265,7 @@ server {
 | GET | `/api/subdomains` | 列出子域跳转 | HTTP Basic | 200 |
 | POST | `/api/subdomains` | 新增子域跳转（`host` 为完整域名） | HTTP Basic | 201 / 409 |
 | DELETE | `/api/subdomains/{id}` | 删除子域跳转 | HTTP Basic | 204 / 404 |
-| GET | `/r/{code}` | 短链接跳转并累积访问量 | 无 | 302 / 404 |
+| GET | `/{code}` | 短链接跳转并累积访问量 | 无 | 302 / 404 |
 
 写操作同时支持 JSON 与表单提交，示例如下：
 

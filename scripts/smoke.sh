@@ -91,7 +91,7 @@ log "短链创建成功，ID=$short_link_id"
 redirect_headers=$(mktemp)
 tmp_files+=("$redirect_headers")
 redirect_status=$(curl -sS -o /dev/null -D "$redirect_headers" -w "%{http_code}" \
-  "$BASE_URL/r/$short_code")
+  "$BASE_URL/$short_code")
 if [[ "$redirect_status" != "302" ]]; then
   log "短链跳转状态码异常: $redirect_status"
   sed -n '1,20p' "$redirect_headers"

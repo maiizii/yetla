@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .deps import get_db, require_basic_auth
-from .models import Base, ShortLink, SubdomainRedirect, engine
+from .models import Base, ShortLink, SubdomainRedirect, engine, ensure_subdomain_hits_column
 from .schemas import (
     ShortLink as ShortLinkSchema,
     ShortLinkCreate,
@@ -30,6 +30,7 @@ from pydantic import ValidationError
 
 SHORT_CODE_LEN = int(os.getenv("SHORT_CODE_LEN", "6"))
 MAX_CODE_ATTEMPTS = 10
+BASE_DOMAIN = os.getenv("BASE_DOMAIN", "").strip().lower()
 
 app = FastAPI(
     title="Yetla Redirect API",
@@ -59,6 +60,7 @@ def ensure_tables() -> None:
 
     try:
         Base.metadata.create_all(bind=engine)
+        ensure_subdomain_hits_column()
     except SQLAlchemyError as exc:  # pragma: no cover - 依赖数据库环境
         raise RuntimeError("failed to initialize database schema") from exc
 
@@ -554,36 +556,43 @@ async def update_subdomain(
     return redirect
 
 
-@app.get("/r/{code}")
-def redirect_short_link(code: str, db: Session = Depends(get_db)) -> RedirectResponse:
-    """公共短链接跳转入口，同时累计访问次数。"""
-
-    short_link = db.scalar(select(ShortLink).where(ShortLink.code == code))
-    if short_link is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
-
-    short_link.hits += 1
-    db.add(short_link)
-    _commit_session(db)
-
-    return RedirectResponse(short_link.target_url, status_code=status.HTTP_302_FOUND)
-
-
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
 def catch_all(
     request: Request, path: str, db: Session = Depends(get_db)
 ) -> Response:
     """根据 Host 匹配子域跳转规则，否则返回 404 文本。"""
 
-    host = (request.headers.get("host") or "").strip().lower()
-    if not host:
+    raw_host = (request.headers.get("host") or "").strip().lower()
+    if not raw_host:
         return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
+    host = raw_host.split(":", 1)[0]
 
     redirect = db.scalar(select(SubdomainRedirect).where(SubdomainRedirect.host == host))
-    if redirect is None:
-        return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
+    if redirect is not None:
+        redirect.hits += 1
+        db.add(redirect)
+        _commit_session(db)
 
-    destination = _compose_redirect_target(
-        redirect.target_url, path=path, query=request.url.query or ""
-    )
-    return RedirectResponse(destination, status_code=redirect.code)
+        destination = _compose_redirect_target(
+            redirect.target_url, path=path, query=request.url.query or ""
+        )
+        return RedirectResponse(destination, status_code=redirect.code)
+
+    allow_short_link = not BASE_DOMAIN or host == BASE_DOMAIN
+
+    if allow_short_link and request.method in {"GET", "HEAD"}:
+        code = path.strip("/")
+        if code and "/" not in code:
+            short_link = db.scalar(select(ShortLink).where(ShortLink.code == code))
+            if short_link is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
+
+            short_link.hits += 1
+            db.add(short_link)
+            _commit_session(db)
+
+            return RedirectResponse(
+                short_link.target_url, status_code=status.HTTP_302_FOUND
+            )
+
+    return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)

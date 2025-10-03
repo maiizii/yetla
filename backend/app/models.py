@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import DateTime, Integer, String, create_engine, func
+from sqlalchemy import DateTime, Integer, String, create_engine, func, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
@@ -66,6 +66,7 @@ class SubdomainRedirect(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    hits: Mapped[int] = mapped_column("hits_int", Integer, default=0, nullable=False)
 
 
 class ShortLink(Base):
@@ -80,4 +81,18 @@ class ShortLink(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+def ensure_subdomain_hits_column() -> None:
+    """Ensure the legacy databases have the hits column for subdomain redirects."""
+
+    inspector = inspect(engine)
+    columns = {column["name"] for column in inspector.get_columns("subdomain_redirects")}
+    if "hits_int" in columns:
+        return
+
+    with engine.begin() as connection:
+        connection.execute(
+            text("ALTER TABLE subdomain_redirects ADD COLUMN hits_int INTEGER NOT NULL DEFAULT 0")
+        )
 
