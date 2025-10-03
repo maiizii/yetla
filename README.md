@@ -9,6 +9,7 @@
 - [快速开始](#快速开始)
 - [一键命令](#一键命令)
 - [验收脚本](#验收脚本)
+- [HTTPS 入口与冒烟验证](#https-入口与冒烟验证)
 - [安装与部署指南](#安装与部署指南)
 - [部署完成后的使用方式](#部署完成后的使用方式)
 - [API 说明与示例 curl](#api-说明与示例-curl)
@@ -109,6 +110,64 @@ $ bash scripts/smoke.sh
 [2024-01-01 12:00:00] 健康检查通过
 [2024-01-01 12:00:01] 所有验收步骤完成
 ```
+
+## HTTPS 入口与冒烟验证
+
+Nginx 容器会读取宿主机 `/root/ssl/*.yet.la_yet.la_P256/` 目录下的证书文件，并在启动阶段通过 `docker-entrypoint.d/10-setup-cert-links.sh` 创建到 `/etc/nginx/certs/fullchain.cer` 与 `/etc/nginx/certs/private.key` 的只读符号链接。确保目录结构与权限正确后，执行 `docker compose up -d --build` 即会同时监听 `80`（仅用于 301 跳转）与 `443`（HTTPS upstream）。
+
+部署完成后，可使用以下命令进行最小化冒烟测试：
+
+1. **HTTP 自动跳转 HTTPS**
+
+   ```bash
+   curl -I -H "Host: yet.la" http://127.0.0.1:8080/
+   ```
+
+   期望状态码 `301`，`Location` 头指向 `https://yet.la/...`。
+
+2. **未授权访问返回 401**
+
+   ```bash
+   curl -skI -H "Host: yet.la" https://127.0.0.1/api/subdomains
+   ```
+
+   期望状态码 `401`，并携带 `WWW-Authenticate` 响应头。
+
+3. **携带 Basic Auth 可创建记录**
+
+   ```bash
+   curl -skI -u admin:admin -H "Host: yet.la" \
+     --data "host=test.yet.la&target_url=https://example.com&code=302" \
+     https://127.0.0.1/api/subdomains
+   ```
+
+   期望状态码 `200` 或 `201`，表示新增成功。
+
+4. **命中已配置子域返回 302**
+
+   ```bash
+   curl -skI -H "Host: test.yet.la" https://127.0.0.1/
+   ```
+
+   期望状态码 `302`（或创建时指定的码），并重定向到目标地址。
+
+为了自动化执行上述步骤，仓库新增 `scripts/proxy-smoke.sh`：
+
+```bash
+bash scripts/proxy-smoke.sh
+```
+
+脚本默认连接 `127.0.0.1:8080/443`，可通过环境变量覆盖：
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `HTTP_HOST` / `HTTPS_HOST` | `127.0.0.1` | 反向代理监听地址 |
+| `HTTP_PORT` / `HTTPS_PORT` | `8080` / `443` | HTTP/HTTPS 端口 |
+| `BASE_DOMAIN` | `yet.la` | 发送在 `Host` 头中的主域 |
+| `ADMIN_USER` / `ADMIN_PASS` | `admin` / `admin` | API 基础认证凭据 |
+| `SMOKE_CODE` | `302` | 创建子域时使用的重定向状态码 |
+
+脚本会在末尾清理临时创建的子域记录，便于重复执行。
 
 ## 安装与部署指南
 

@@ -12,6 +12,7 @@ from urllib.parse import parse_qsl
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .deps import get_db, require_basic_auth
@@ -50,7 +51,10 @@ def ensure_tables() -> None:
     except Exception as exc:  # pragma: no cover - 失败属于部署问题
         raise RuntimeError(f"failed to ensure /data directory: {exc}") from exc
 
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except SQLAlchemyError as exc:  # pragma: no cover - 依赖数据库环境
+        raise RuntimeError("failed to initialize database schema") from exc
 
 
 @app.exception_handler(HTTPException)
