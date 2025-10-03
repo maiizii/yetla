@@ -79,3 +79,31 @@ def short_link_table(
         "admin/partials/link_table.html",
         {"request": request, "short_links": short_links},
     )
+
+
+@router.get("/admin/subdomains/count", response_class=HTMLResponse)
+def subdomain_count(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """Return the current subdomain redirect count fragment."""
+
+    subdomains = _load_subdomains(db)
+    return templates.TemplateResponse(
+        "admin/partials/subdomain_count.html",
+        {"request": request, "count": len(subdomains)},
+    )
+
+
+@router.get("/admin/subdomains/table", response_class=HTMLResponse)
+def subdomain_table(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """Return the subdomain table fragment for HTMX swaps."""
+
+    subdomains = _load_subdomains(db)
+    return templates.TemplateResponse(
+        "admin/partials/subdomain_table.html",
+        {"request": request, "subdomains": subdomains},
+    )

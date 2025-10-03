@@ -112,6 +112,23 @@ async def _parse_short_link_payload(request: Request) -> ShortLinkCreate:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
 
 
+async def _parse_subdomain_payload(request: Request) -> SubdomainRedirectCreate:
+    """解析子域跳转请求载荷，支持 JSON 与表单提交。"""
+
+    content_type = request.headers.get("content-type", "").lower()
+    data: dict[str, Any]
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        form = await request.form()
+        data = {key: value for key, value in form.multi_items()}
+
+    try:
+        return SubdomainRedirectCreate.model_validate(data)
+    except ValidationError as exc:  # pragma: no cover - FastAPI 将统一处理
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+
 def _format_validation_errors(detail: Any) -> str:
     """将 Pydantic 错误信息转换为可读字符串。"""
 
@@ -260,9 +277,12 @@ def list_subdomains(db: Session = Depends(get_db)) -> list[SubdomainRedirect]:
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_basic_auth)],
 )
-def create_subdomain(
-    payload: SubdomainRedirectCreate, db: Session = Depends(get_db)
-) -> SubdomainRedirect:
+async def create_subdomain(
+    request: Request,
+    response: Response,
+    payload: SubdomainRedirectCreate = Depends(_parse_subdomain_payload),
+    db: Session = Depends(get_db),
+) -> SubdomainRedirect | HTMLResponse:
     """创建子域跳转规则，Host 为完整域名。"""
 
     host = payload.host
@@ -274,6 +294,21 @@ def create_subdomain(
     db.add(redirect)
     db.commit()
     db.refresh(redirect)
+
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = (
+            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
+            "子域跳转已创建"
+            "</div>"
+        )
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_201_CREATED,
+            headers={"HX-Trigger": "refresh-subdomains"},
+        )
+
+    response.headers["HX-Trigger"] = "refresh-subdomains"
     return redirect
 
 
@@ -282,7 +317,12 @@ def create_subdomain(
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_basic_auth)],
 )
-def delete_subdomain(redirect_id: int, db: Session = Depends(get_db)) -> None:
+def delete_subdomain(
+    redirect_id: int,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> Response | HTMLResponse:
     """删除指定子域跳转。"""
 
     redirect = db.get(SubdomainRedirect, redirect_id)
@@ -290,6 +330,21 @@ def delete_subdomain(redirect_id: int, db: Session = Depends(get_db)) -> None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
     db.delete(redirect)
     db.commit()
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = (
+            "<div class=\"rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700\">"
+            "子域跳转已删除"
+            "</div>"
+        )
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_200_OK,
+            headers={"HX-Trigger": "refresh-subdomains"},
+        )
+
+    response.headers["HX-Trigger"] = "refresh-subdomains"
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/r/{code}")

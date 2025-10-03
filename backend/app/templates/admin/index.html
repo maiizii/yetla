@@ -29,7 +29,11 @@
             class="inline-flex items-center gap-2 rounded-full px-4 py-2 transition-colors {% if active_tab == 'subdomains' %}bg-sky-100 text-sky-700{% else %}hover:bg-slate-100{% endif %}"
           >
             <span class="h-2 w-2 rounded-full {% if active_tab == 'subdomains' %}bg-sky-500{% else %}bg-slate-300{% endif %}"></span>
-            子域跳转 ({{ subdomains|length }})
+            子域跳转 (
+            {% with count=subdomains|length %}
+            {% include "admin/partials/subdomain_count.html" %}
+            {% endwith %}
+            )
           </a>
         </li>
       </ul>
@@ -112,45 +116,94 @@
         </section>
       </div>
       {% else %}
-      <div class="mt-6">
-        <h2 class="text-lg font-semibold text-slate-800">子域跳转</h2>
-        <p class="mt-1 text-sm text-slate-500">
-          子域映射可将不同的 Host 指向对应的目标地址，支持配置 301/302 等跳转码。
-        </p>
-        <div class="mt-4 overflow-hidden rounded-lg border border-slate-200">
-          <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead class="bg-slate-50 text-slate-600">
-              <tr>
-                <th scope="col" class="px-4 py-3 font-medium">ID</th>
-                <th scope="col" class="px-4 py-3 font-medium">Host</th>
-                <th scope="col" class="px-4 py-3 font-medium">目标地址</th>
-                <th scope="col" class="px-4 py-3 font-medium">状态码</th>
-                <th scope="col" class="px-4 py-3 font-medium">创建时间</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              {% if subdomains %}
-              {% for item in subdomains %}
-              <tr class="hover:bg-slate-50">
-                <td class="px-4 py-3 text-slate-600">{{ item.id }}</td>
-                <td class="px-4 py-3 font-mono text-slate-800">{{ item.host }}</td>
-                <td class="px-4 py-3 text-slate-600 break-words">{{ item.target_url }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ item.code }}</td>
-                <td class="px-4 py-3 text-slate-500">
-                  {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
-                </td>
-              </tr>
-              {% endfor %}
-              {% else %}
-              <tr>
-                <td class="px-4 py-6 text-center text-slate-500" colspan="5">
-                  暂无子域规则，可通过 <code class="font-mono">/api/subdomains</code> 接口创建。
-                </td>
-              </tr>
-              {% endif %}
-            </tbody>
-          </table>
-        </div>
+      <div class="mt-6 space-y-6">
+        <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
+            <h2 class="text-base font-semibold text-slate-800">创建子域跳转</h2>
+            <p class="mt-1 text-sm text-slate-500">
+              Host 请填写完整域名，状态码默认为 302，可选填为 301。
+            </p>
+          </div>
+          <form
+            class="space-y-4 px-6 py-6"
+            hx-post="/api/subdomains"
+            hx-trigger="submit"
+            hx-target="#subdomain-feedback"
+            hx-swap="innerHTML"
+          >
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label for="host" class="block text-sm font-medium text-slate-700">Host *</label>
+                <input
+                  id="host"
+                  name="host"
+                  type="text"
+                  required
+                  class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  placeholder="如 foo.yet.la"
+                />
+              </div>
+              <div>
+                <label for="code" class="block text-sm font-medium text-slate-700">状态码</label>
+                <input
+                  id="code"
+                  name="code"
+                  type="number"
+                  value="302"
+                  min="301"
+                  max="302"
+                  step="1"
+                  class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+              </div>
+              <div class="sm:col-span-2">
+                <label for="target_url" class="block text-sm font-medium text-slate-700">目标地址 *</label>
+                <input
+                  id="target_url"
+                  name="target_url"
+                  type="url"
+                  required
+                  class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  placeholder="https://example.com"
+                />
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <p class="text-xs text-slate-500">
+                表单调用 <code class="font-mono">POST /api/subdomains</code>，与外部接口保持一致。
+              </p>
+              <button
+                type="submit"
+                class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-500"
+              >
+                保存子域跳转
+              </button>
+            </div>
+          </form>
+          <div
+            id="subdomain-feedback"
+            class="border-t border-slate-200 px-6 py-4 text-sm text-slate-500"
+            role="status"
+            aria-live="polite"
+          ></div>
+        </section>
+        <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
+            <h2 class="text-base font-semibold text-slate-800">子域跳转列表</h2>
+            <p class="mt-1 text-sm text-slate-500">
+              列表展示当前 Host、目标地址与状态码，支持直接删除。
+            </p>
+          </div>
+          <div
+            id="subdomains-table"
+            class="bg-white"
+            hx-get="/admin/subdomains/table"
+            hx-trigger="load, refresh-subdomains from:body"
+            hx-swap="innerHTML"
+          >
+            {% include "admin/partials/subdomain_table.html" %}
+          </div>
+        </section>
       </div>
       {% endif %}
     </div>
