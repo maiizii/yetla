@@ -41,7 +41,10 @@ app = FastAPI(
 )
 
 
-from .views import router as admin_router  # noqa: E402  pylint: disable=wrong-import-position
+from .views import (
+    router as admin_router,
+    templates as admin_templates,
+)  # noqa: E402  pylint: disable=wrong-import-position
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -407,8 +410,12 @@ async def update_short_link(
             "短链已更新"
             "</div>"
         )
+        row_html = admin_templates.get_template("admin/partials/link_row.html").render(
+            {"request": request, "item": short_link, "oob": True}
+        )
+        content = f"{message}{row_html}"
         return HTMLResponse(
-            message,
+            content,
             status_code=status.HTTP_200_OK,
             headers={"HX-Trigger": "refresh-links"},
         )
@@ -546,8 +553,12 @@ async def update_subdomain(
             "子域跳转已更新"
             "</div>"
         )
+        row_html = admin_templates.get_template("admin/partials/subdomain_row.html").render(
+            {"request": request, "item": redirect, "oob": True}
+        )
+        content = f"{message}{row_html}"
         return HTMLResponse(
-            message,
+            content,
             status_code=status.HTTP_200_OK,
             headers={"HX-Trigger": "refresh-subdomains"},
         )

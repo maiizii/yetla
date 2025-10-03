@@ -64,6 +64,8 @@ def test_update_subdomain_via_htmx_form(client: "SimpleClient") -> None:
     assert response.status_code == 200
     assert response.headers.get("hx-trigger") == "refresh-subdomains"
     assert "子域跳转已更新" in response.text
+    assert "subdomain-row" in response.text
+    assert "hx-swap-oob=\"outerHTML\"" in response.text
 
     listing = client.get("/api/subdomains", auth=ADMIN_AUTH)
     records = listing.json()
