@@ -73,6 +73,31 @@ make shell
 
 上述命令默认读取 `docker-compose.yml` 与 `docker-compose.override.yml`，方便在开发机快速验证路由配置与接口健康状况。
 
+## 验收脚本
+
+仓库提供了 `scripts/smoke.sh` 用于在本地或 CI 环境快速验收接口是否可用。脚本会：
+
+- 调用 `POST /api/links` 创建短链并校验 `/r/{code}` 返回 302 及正确的 `Location` 头；
+- 调用 `POST /api/subdomains` 创建子域跳转并通过自定义 `Host` 头确认 301/302 跳转；
+- 清理新建的短链与子域记录，保持数据库整洁。
+
+在运行脚本前请确保服务已启动（默认监听 `http://localhost:8000`），并根据需要调整以下环境变量：
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `BASE_URL` | `http://localhost:8000` | FastAPI 服务地址 |
+| `ADMIN_USER` / `ADMIN_PASS` | `admin` / `admin` | 受保护接口的 HTTP Basic 凭据 |
+| `SMOKE_SUBDOMAIN_CODE` | `302` | 创建子域时使用的跳转状态码 |
+
+执行示例：
+
+```bash
+$ bash scripts/smoke.sh
+[2024-01-01 12:00:00] 验收脚本启动，目标服务：http://localhost:8000
+[2024-01-01 12:00:00] 健康检查通过
+[2024-01-01 12:00:01] 所有验收步骤完成
+```
+
 ## 部署
 
 默认的 `docker-compose.yml` 仍保留示例站点路由，方便验证静态 upstream 的写法。若要让容器化 Nginx 统一代理到 FastAPI backend，只需保留同目录下的 `docker-compose.override.yml`：
