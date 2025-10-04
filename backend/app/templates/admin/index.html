@@ -1,120 +1,237 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-8">
-  <div class="rounded-md border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
-    管理后台的所有表单均直接调用 <code class="font-mono">/api/*</code> 接口，请按接口契约填写字段；
-    若提交失败将展示后端返回的原始错误信息，便于排查。
-  </div>
-  <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
-    <nav class="border-b border-slate-200 px-6 pt-6" aria-label="Sections">
-      <ul class="flex flex-wrap gap-3 text-sm font-medium text-slate-500">
-        <li>
-          <a
-            href="?tab=links"
-            class="inline-flex items-center gap-2 rounded-full px-4 py-2 transition-colors {% if active_tab == 'links' %}bg-sky-100 text-sky-700{% else %}hover:bg-slate-100{% endif %}"
-          >
-            <span class="h-2 w-2 rounded-full {% if active_tab == 'links' %}bg-sky-500{% else %}bg-slate-300{% endif %}"></span>
-            短链 (
-            <span
-              id="short-link-count"
-              hx-get="/admin/links/count"
-              hx-trigger="load, refresh-links from:body"
-              hx-swap="outerHTML"
-            >
-              {{ short_links|length }}
-            </span>
-            )
-          </a>
-        </li>
-        <li>
-          <a
-            href="?tab=subdomains"
-            class="inline-flex items-center gap-2 rounded-full px-4 py-2 transition-colors {% if active_tab == 'subdomains' %}bg-sky-100 text-sky-700{% else %}hover:bg-slate-100{% endif %}"
-          >
-            <span class="h-2 w-2 rounded-full {% if active_tab == 'subdomains' %}bg-sky-500{% else %}bg-slate-300{% endif %}"></span>
-            子域跳转 (
-            {% with count=subdomains|length %}
-            {% include "admin/partials/subdomain_count.html" %}
-            {% endwith %}
-            )
-          </a>
-        </li>
-      </ul>
+<div class="theme-layout">
+  <section class="theme-gallery">
+    <div class="theme-gallery__header">
+      <span class="theme-eyebrow">主题预览</span>
+      <h2 class="theme-gallery__title">选择你的管理后台风格</h2>
+      <p class="theme-gallery__description">
+        登录、短链与子域管理界面提供多种视觉主题。下方卡片支持实时预览与一键切换，帮助团队匹配不同品牌调性或活动氛围。
+      </p>
+    </div>
+    <div class="theme-gallery__grid">
+      <article
+        class="theme-preview-card"
+        data-theme-option="aurora"
+        tabindex="0"
+        role="button"
+        aria-label="切换至 Aurora Glow 主题预览"
+      >
+        <div class="theme-preview-card__header">
+          <span class="theme-preview-card__title">Aurora Glow</span>
+          <span class="theme-preview-card__tag">清新渐变 · 光感玻璃</span>
+        </div>
+        <div class="theme-preview-card__canvas">
+          <div class="theme-preview-surface theme-preview-surface--login">
+            <div class="theme-preview-label theme-preview-label--wide"></div>
+            <div class="theme-preview-input"></div>
+            <div class="theme-preview-input"></div>
+            <div class="theme-preview-button-row">
+              <div class="theme-preview-button"></div>
+            </div>
+          </div>
+          <div class="theme-preview-surface">
+            <div class="theme-preview-label"></div>
+            <div class="theme-preview-input"></div>
+            <div class="theme-preview-label theme-preview-label--narrow"></div>
+            <div class="theme-preview-button-row">
+              <div class="theme-preview-button"></div>
+              <div class="theme-preview-button theme-preview-button--ghost"></div>
+            </div>
+          </div>
+        </div>
+        <div class="theme-preview-card__actions">
+          <button type="button" class="theme-button theme-button--solid" data-theme-apply="aurora">
+            使用 Aurora Glow
+          </button>
+          <p>渐变玻璃与柔和阴影为后台营造灵动氛围，适合品牌推广、营销活动或需要突出科技感的场景。</p>
+        </div>
+      </article>
+      <article
+        class="theme-preview-card"
+        data-theme-option="nebula"
+        tabindex="0"
+        role="button"
+        aria-label="切换至 Nebula Pulse 主题预览"
+      >
+        <div class="theme-preview-card__header">
+          <span class="theme-preview-card__title">Nebula Pulse</span>
+          <span class="theme-preview-card__tag">霓虹夜色 · 深色宇宙</span>
+        </div>
+        <div class="theme-preview-card__canvas">
+          <div class="theme-preview-surface theme-preview-surface--login">
+            <div class="theme-preview-label theme-preview-label--wide"></div>
+            <div class="theme-preview-input"></div>
+            <div class="theme-preview-input"></div>
+            <div class="theme-preview-button-row">
+              <div class="theme-preview-button"></div>
+            </div>
+          </div>
+          <div class="theme-preview-surface">
+            <div class="theme-preview-label"></div>
+            <div class="theme-preview-input"></div>
+            <div class="theme-preview-label theme-preview-label--narrow"></div>
+            <div class="theme-preview-button-row">
+              <div class="theme-preview-button"></div>
+              <div class="theme-preview-button theme-preview-button--ghost"></div>
+            </div>
+          </div>
+        </div>
+        <div class="theme-preview-card__actions">
+          <button type="button" class="theme-button theme-button--solid" data-theme-apply="nebula">
+            使用 Nebula Pulse
+          </button>
+          <p>深色基调搭配霓虹蓝光，适合偏开发者、夜间模式或需要沉浸式体验的 SaaS 管理后台。</p>
+        </div>
+      </article>
+      <article
+        class="theme-preview-card"
+        data-theme-option="noir"
+        tabindex="0"
+        role="button"
+        aria-label="切换至 Noir Contrast 主题预览"
+      >
+        <div class="theme-preview-card__header">
+          <span class="theme-preview-card__title">Noir Contrast</span>
+          <span class="theme-preview-card__tag">极简留白 · 强烈对比</span>
+        </div>
+        <div class="theme-preview-card__canvas">
+          <div class="theme-preview-surface theme-preview-surface--login">
+            <div class="theme-preview-label theme-preview-label--wide"></div>
+            <div class="theme-preview-input"></div>
+            <div class="theme-preview-input"></div>
+            <div class="theme-preview-button-row">
+              <div class="theme-preview-button"></div>
+            </div>
+          </div>
+          <div class="theme-preview-surface">
+            <div class="theme-preview-label"></div>
+            <div class="theme-preview-input"></div>
+            <div class="theme-preview-label theme-preview-label--narrow"></div>
+            <div class="theme-preview-button-row">
+              <div class="theme-preview-button"></div>
+              <div class="theme-preview-button theme-preview-button--ghost"></div>
+            </div>
+          </div>
+        </div>
+        <div class="theme-preview-card__actions">
+          <button type="button" class="theme-button theme-button--solid" data-theme-apply="noir">
+            使用 Noir Contrast
+          </button>
+          <p>经典黑白配色搭配红色点缀，兼顾商务感与冲击力，适合需要稳重又不失锋芒的企业后台。</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="theme-shell">
+    <div class="theme-shell__banner">
+      <div class="theme-tagline">
+        管理后台的所有表单均直接调用 <code>/api/*</code> 接口，请按接口契约填写字段；若提交失败会返回后端原始错误信息，便于快速排查。
+      </div>
+    </div>
+    <nav class="theme-tabs" aria-label="Sections">
+      <a
+        href="?tab=links"
+        class="theme-tab {% if active_tab == 'links' %}is-active{% endif %}"
+      >
+        <span class="theme-tab__dot"></span>
+        短链 (
+        <span
+          id="short-link-count"
+          hx-get="/admin/links/count"
+          hx-trigger="load, refresh-links from:body"
+          hx-swap="outerHTML"
+        >
+          {{ short_links|length }}
+        </span>
+        )
+      </a>
+      <a
+        href="?tab=subdomains"
+        class="theme-tab {% if active_tab == 'subdomains' %}is-active{% endif %}"
+      >
+        <span class="theme-tab__dot"></span>
+        子域跳转 (
+        {% with count=subdomains|length %}
+        {% include "admin/partials/subdomain_count.html" %}
+        {% endwith %}
+        )
+      </a>
     </nav>
-    <div class="px-6 pb-6">
+    <div class="theme-shell__body">
       {% if active_tab == 'links' %}
-      <div class="mt-6 space-y-6">
-        <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
-            <h2 class="text-base font-semibold text-slate-800">创建短链</h2>
-            <p class="mt-1 text-sm text-slate-500">
-              仅需填写目标地址，可选填短链编码。提交后表格会自动刷新。
+      <div class="theme-stack">
+        <section class="theme-card">
+          <div class="theme-card__header">
+            <h2 class="theme-card__title">创建短链</h2>
+            <p class="theme-card__subtitle">
+              仅需填写目标地址，可选填短链编码。提交后表格会自动刷新，适合批量验证跳转配置。
             </p>
           </div>
-          <form
-            class="space-y-4 px-6 py-6"
-            action="/api/links"
-            method="post"
-            hx-post="/api/links"
-            hx-trigger="submit"
-            hx-target="#link-feedback"
-            hx-swap="innerHTML"
-            data-reset-on-success="true"
-            data-success-event="refresh-links"
-          >
-            <div class="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label for="code" class="block text-sm font-medium text-slate-700">短链编码（可选）</label>
-                <input
-                  id="code"
-                  name="code"
-                  type="text"
-                  class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  placeholder="留空则自动生成"
-                />
+          <div class="theme-card__body">
+            <form
+              class="theme-form"
+              action="/api/links"
+              method="post"
+              hx-post="/api/links"
+              hx-trigger="submit"
+              hx-target="#link-feedback"
+              hx-swap="innerHTML"
+              data-reset-on-success="true"
+              data-success-event="refresh-links"
+            >
+              <div class="theme-form__grid theme-form__grid--two">
+                <div class="theme-field">
+                  <label for="code" class="theme-label">短链编码（可选）</label>
+                  <input
+                    id="code"
+                    name="code"
+                    type="text"
+                    class="theme-input"
+                    placeholder="留空则自动生成"
+                  />
+                </div>
+                <div class="theme-field theme-form__span-full">
+                  <label for="target_url" class="theme-label">目标地址 *</label>
+                  <input
+                    id="target_url"
+                    name="target_url"
+                    type="url"
+                    required
+                    class="theme-input"
+                    placeholder="https://example.com/path"
+                  />
+                </div>
               </div>
-              <div class="sm:col-span-2">
-                <label for="target_url" class="block text-sm font-medium text-slate-700">目标地址 *</label>
-                <input
-                  id="target_url"
-                  name="target_url"
-                  type="url"
-                  required
-                  class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  placeholder="https://example.com/path"
-                />
+              <div class="theme-form__footer">
+                <p class="theme-helper">
+                  表单直接调用 <code>POST /api/links</code>，遵循与外部调用一致的字段校验。
+                </p>
+                <button type="submit" class="theme-button theme-button--solid">
+                  保存短链
+                </button>
               </div>
-            </div>
-            <div class="flex items-center justify-between">
-              <p class="text-xs text-slate-500">
-                表单直接调用 <code class="font-mono">POST /api/links</code>，遵循与外部调用一致的校验。
-              </p>
-              <button
-                type="submit"
-                class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-500"
-              >
-                保存短链
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
           <div
             id="link-feedback"
-            class="border-t border-slate-200 px-6 py-4 text-sm text-slate-500"
+            class="theme-feedback"
             role="status"
             aria-live="polite"
           ></div>
         </section>
-        <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
-            <h2 class="text-base font-semibold text-slate-800">短链列表</h2>
-            <p class="mt-1 text-sm text-slate-500">
-              列表展示当前短链、跳转目标与累计访问次数，可在操作列直接删除。
+        <section class="theme-card">
+          <div class="theme-card__header">
+            <h2 class="theme-card__title">短链列表</h2>
+            <p class="theme-card__subtitle">
+              查看短链编码、跳转目标与访问次数，可直接在操作列进行编辑或删除。
             </p>
           </div>
           <div
             id="links-table"
-            class="bg-white"
+            class="theme-card__body theme-card__body--table"
             hx-get="/admin/links/table"
             hx-trigger="load, refresh-links from:body"
             hx-swap="innerHTML"
@@ -124,91 +241,90 @@
         </section>
       </div>
       {% else %}
-      <div class="mt-6 space-y-6">
-        <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
-            <h2 class="text-base font-semibold text-slate-800">创建子域跳转</h2>
-            <p class="mt-1 text-sm text-slate-500">
-              Host 请填写完整域名，状态码默认为 302，可选填为 301。
+      <div class="theme-stack">
+        <section class="theme-card">
+          <div class="theme-card__header">
+            <h2 class="theme-card__title">创建子域跳转</h2>
+            <p class="theme-card__subtitle">
+              Host 请填写完整域名，状态码默认为 302，可按需切换为 301。成功后列表会自动刷新。
             </p>
           </div>
-          <form
-            class="space-y-4 px-6 py-6"
-            action="/api/subdomains"
-            method="post"
-            hx-post="/api/subdomains"
-            hx-trigger="submit"
-            hx-target="#subdomain-feedback"
-            hx-swap="innerHTML"
-            data-reset-on-success="true"
-            data-success-event="refresh-subdomains"
-          >
-            <div class="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label for="host" class="block text-sm font-medium text-slate-700">Host *</label>
-                <input
-                  id="host"
-                  name="host"
-                  type="text"
-                  required
-                  class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  placeholder="如 foo.yet.la"
-                />
+          <div class="theme-card__body">
+            <form
+              class="theme-form"
+              action="/api/subdomains"
+              method="post"
+              hx-post="/api/subdomains"
+              hx-trigger="submit"
+              hx-target="#subdomain-feedback"
+              hx-swap="innerHTML"
+              data-reset-on-success="true"
+              data-success-event="refresh-subdomains"
+            >
+              <div class="theme-form__grid theme-form__grid--three">
+                <div class="theme-field">
+                  <label for="host" class="theme-label">Host *</label>
+                  <input
+                    id="host"
+                    name="host"
+                    type="text"
+                    required
+                    class="theme-input"
+                    placeholder="如 foo.yet.la"
+                  />
+                </div>
+                <div class="theme-field">
+                  <label for="code" class="theme-label">状态码</label>
+                  <input
+                    id="code"
+                    name="code"
+                    type="number"
+                    value="302"
+                    min="301"
+                    max="302"
+                    step="1"
+                    class="theme-input"
+                  />
+                </div>
+                <div class="theme-field theme-form__span-full">
+                  <label for="target_url" class="theme-label">目标地址 *</label>
+                  <input
+                    id="target_url"
+                    name="target_url"
+                    type="url"
+                    required
+                    class="theme-input"
+                    placeholder="https://example.com"
+                  />
+                </div>
               </div>
-              <div>
-                <label for="code" class="block text-sm font-medium text-slate-700">状态码</label>
-                <input
-                  id="code"
-                  name="code"
-                  type="number"
-                  value="302"
-                  min="301"
-                  max="302"
-                  step="1"
-                  class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
+              <div class="theme-form__footer">
+                <p class="theme-helper">
+                  表单调用 <code>POST /api/subdomains</code>，与外部接口保持一致。
+                </p>
+                <button type="submit" class="theme-button theme-button--solid">
+                  保存子域跳转
+                </button>
               </div>
-              <div class="sm:col-span-2">
-                <label for="target_url" class="block text-sm font-medium text-slate-700">目标地址 *</label>
-                <input
-                  id="target_url"
-                  name="target_url"
-                  type="url"
-                  required
-                  class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  placeholder="https://example.com"
-                />
-              </div>
-            </div>
-            <div class="flex items-center justify-between">
-              <p class="text-xs text-slate-500">
-                表单调用 <code class="font-mono">POST /api/subdomains</code>，与外部接口保持一致。
-              </p>
-              <button
-                type="submit"
-                class="inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-500"
-              >
-                保存子域跳转
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
           <div
             id="subdomain-feedback"
-            class="border-t border-slate-200 px-6 py-4 text-sm text-slate-500"
+            class="theme-feedback"
             role="status"
             aria-live="polite"
           ></div>
         </section>
-        <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
-            <h2 class="text-base font-semibold text-slate-800">子域跳转列表</h2>
-            <p class="mt-1 text-sm text-slate-500">
-              列表展示当前 Host、目标地址与状态码，支持直接删除。
+        <section class="theme-card">
+          <div class="theme-card__header">
+            <h2 class="theme-card__title">子域跳转列表</h2>
+            <p class="theme-card__subtitle">
+              快速检索当前子域配置、跳转目标与状态码，可直接删除或进入编辑态。
             </p>
           </div>
           <div
             id="subdomains-table"
-            class="bg-white"
+            class="theme-card__body theme-card__body--table"
             hx-get="/admin/subdomains/table"
             hx-trigger="load, refresh-subdomains from:body"
             hx-swap="innerHTML"

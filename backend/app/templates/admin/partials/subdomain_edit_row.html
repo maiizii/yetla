@@ -1,26 +1,26 @@
-<tr id="subdomain-row-{{ item.id }}" class="bg-slate-50">
-  <td colspan="6" class="px-4 py-4">
+<tr id="subdomain-row-{{ item.id }}" class="theme-table__row theme-table__row--editing">
+  <td colspan="6" class="theme-table__cell">
     <form
-      class="space-y-4"
+      class="theme-form"
       hx-put="/api/subdomains/{{ item.id }}"
       hx-target="#subdomain-feedback"
       hx-swap="innerHTML"
       data-success-event="refresh-subdomains"
     >
-      <div class="grid gap-4 sm:grid-cols-3">
-        <div class="sm:col-span-1">
-          <label for="host-{{ item.id }}" class="block text-xs font-medium text-slate-600">Host</label>
+      <div class="theme-form__grid theme-form__grid--three">
+        <div class="theme-field">
+          <label for="host-{{ item.id }}" class="theme-label">Host</label>
           <input
             id="host-{{ item.id }}"
             name="host"
             type="text"
             required
             value="{{ item.host }}"
-            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+            class="theme-input"
           />
         </div>
-        <div>
-          <label for="code-{{ item.id }}" class="block text-xs font-medium text-slate-600">状态码</label>
+        <div class="theme-field">
+          <label for="code-{{ item.id }}" class="theme-label">状态码</label>
           <input
             id="code-{{ item.id }}"
             name="code"
@@ -30,37 +30,34 @@
             step="1"
             required
             value="{{ item.code }}"
-            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+            class="theme-input"
           />
         </div>
-        <div class="sm:col-span-3">
-          <label for="target-{{ item.id }}" class="block text-xs font-medium text-slate-600">目标地址</label>
+        <div class="theme-field theme-form__span-full">
+          <label for="target-{{ item.id }}" class="theme-label">目标地址</label>
           <input
             id="target-{{ item.id }}"
             name="target_url"
             type="url"
             required
             value="{{ item.target_url }}"
-            class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+            class="theme-input"
           />
         </div>
       </div>
-      <div class="flex items-center justify-between">
-        <p class="text-xs text-slate-500">更新后会覆盖现有跳转配置并刷新列表。</p>
-        <div class="flex items-center gap-2">
+      <div class="theme-form__footer">
+        <p class="theme-helper">更新后会覆盖现有跳转配置并刷新列表。</p>
+        <div class="theme-form__actions">
           <button
             type="button"
-            class="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100"
+            class="theme-button theme-button--ghost theme-button--sm"
             hx-get="/admin/subdomains/{{ item.id }}/row"
             hx-target="closest tr"
             hx-swap="outerHTML"
           >
             取消
           </button>
-          <button
-            type="submit"
-            class="inline-flex items-center rounded-md bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-sky-500"
-          >
+          <button type="submit" class="theme-button theme-button--solid theme-button--sm">
             保存
           </button>
         </div>
