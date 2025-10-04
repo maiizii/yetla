@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .deps import get_db
+from .deps import get_db, require_admin_auth, validate_credentials
+from .session import clear_session, get_session, set_session
 from .models import ShortLink, SubdomainRedirect
 
 DEFAULT_BASE_DOMAIN = "yet.la"
@@ -29,6 +30,16 @@ TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 router = APIRouter()
+
+
+def _safe_redirect_target(target: str | None) -> str:
+    if not target:
+        return "/admin"
+    if target.startswith("http://") or target.startswith("https://"):
+        return "/admin"
+    if not target.startswith("/"):
+        return "/admin"
+    return target
 
 
 def _load_short_links(db: Session) -> list[ShortLink]:
@@ -61,10 +72,11 @@ def _base_context(request: Request) -> dict[str, Any]:
         "base_url": BASE_URL,
         "short_link_prefix": SHORT_LINK_PREFIX,
         "short_code_length": SHORT_CODE_LENGTH,
+        "show_logout_button": True,
     }
 
 
-@router.get("/admin", response_class=HTMLResponse)
+@router.get("/admin", response_class=HTMLResponse, dependencies=[Depends(require_admin_auth)])
 def admin_dashboard(
     request: Request,
     tab: str = Query("links"),
@@ -90,46 +102,89 @@ def admin_dashboard(
     return templates.TemplateResponse("admin/index.html", context)
 
 
-@router.get("/admin/logout", response_class=HTMLResponse)
-def admin_logout() -> HTMLResponse:
-    """Return a 401 response to clear cached HTTP Basic credentials."""
+@router.get("/admin/logout", response_class=HTMLResponse, dependencies=[Depends(require_admin_auth)])
+def admin_logout(request: Request) -> RedirectResponse:
+    """Clear session state and redirect to the login page."""
 
-    response = HTMLResponse(
-        """
-        <!DOCTYPE html>
-        <html lang="zh-CN">
-          <head>
-            <meta charset="utf-8" />
-            <title>yet.la 登出</title>
-            <style>
-              body {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-                  "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-                margin: 4rem auto;
-                max-width: 560px;
-                line-height: 1.6;
-                color: #0f172a;
-                text-align: center;
-              }
-              a {
-                color: #2563eb;
-              }
-            </style>
-          </head>
-          <body>
-            <h1>已退出 yet.la 短链子域管理后台</h1>
-            <p>关闭此页面或<a href="/admin">重新登录</a>以继续管理。</p>
-          </body>
-        </html>
-        """,
-        status_code=status.HTTP_401_UNAUTHORIZED,
-    )
-    response.headers["WWW-Authenticate"] = "Basic realm=\"yet.la admin\""
-    response.headers["Cache-Control"] = "no-store"
+    response = RedirectResponse("/admin/login", status_code=status.HTTP_303_SEE_OTHER)
+    clear_session(response, request)
     return response
 
 
-@router.get("/admin/links/count", response_class=HTMLResponse)
+@router.get("/admin/login", response_class=HTMLResponse)
+def admin_login_page(
+    request: Request,
+    redirect_to: str | None = Query(default=None, alias="next"),
+) -> HTMLResponse:
+    """Render the login page using the dashboard theme."""
+
+    session = get_session(request)
+    if session.get("is_authenticated"):
+        target = _safe_redirect_target(redirect_to)
+        return RedirectResponse(target, status_code=status.HTTP_303_SEE_OTHER)
+
+    context = _base_context(request)
+    context.update(
+        {
+            "show_logout_button": False,
+            "redirect_target": redirect_to,
+            "login_error": None,
+            "username_value": "",
+        }
+    )
+    return templates.TemplateResponse("admin/login.html", context)
+
+
+@router.post("/admin/login", response_class=HTMLResponse)
+async def admin_login_submit(
+    request: Request,
+    redirect_to: str | None = Query(default=None, alias="next"),
+) -> HTMLResponse:
+    """Handle login submissions and persist session state on success."""
+
+    form = await request.form()
+    username = (form.get("username") or "").strip()
+    password = form.get("password") or ""
+
+    error: str | None = None
+    if not username or not password:
+        error = "账号或密码不能为空"
+    else:
+        ok, reason = validate_credentials(username, password)
+        if ok:
+            target = _safe_redirect_target(redirect_to)
+            response = RedirectResponse(target, status_code=status.HTTP_303_SEE_OTHER)
+            set_session(response, request, {"is_authenticated": True, "username": username})
+            return response
+        if reason == "username":
+            error = "账号错误"
+        elif reason == "password":
+            error = "密码错误"
+        else:
+            error = "登录失败"
+
+    context = _base_context(request)
+    context.update(
+        {
+            "show_logout_button": False,
+            "redirect_target": redirect_to,
+            "login_error": error,
+            "username_value": username,
+        }
+    )
+    status_code = status.HTTP_400_BAD_REQUEST if error else status.HTTP_200_OK
+    return templates.TemplateResponse(
+        "admin/login.html",
+        context,
+        status_code=status_code,
+    )
+
+
+@router.get(
+    "/admin/links/count",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_admin_auth)],
+)
 def short_link_count(
     request: Request,
     db: Session = Depends(get_db),
@@ -142,7 +197,11 @@ def short_link_count(
     return templates.TemplateResponse("admin/partials/link_count.html", context)
 
 
-@router.get("/admin/links/table", response_class=HTMLResponse)
+@router.get(
+    "/admin/links/table",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_admin_auth)],
+)
 def short_link_table(
     request: Request,
     db: Session = Depends(get_db),
@@ -155,7 +214,11 @@ def short_link_table(
     return templates.TemplateResponse("admin/partials/link_table.html", context)
 
 
-@router.get("/admin/links/{link_id}/row", response_class=HTMLResponse)
+@router.get(
+    "/admin/links/{link_id}/row",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_admin_auth)],
+)
 def short_link_row(
     request: Request,
     link_id: int,
@@ -172,7 +235,11 @@ def short_link_row(
     return templates.TemplateResponse("admin/partials/link_row.html", context)
 
 
-@router.get("/admin/links/{link_id}/edit", response_class=HTMLResponse)
+@router.get(
+    "/admin/links/{link_id}/edit",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_admin_auth)],
+)
 def short_link_edit_row(
     request: Request,
     link_id: int,
@@ -189,7 +256,11 @@ def short_link_edit_row(
     return templates.TemplateResponse("admin/partials/link_edit_row.html", context)
 
 
-@router.get("/admin/subdomains/count", response_class=HTMLResponse)
+@router.get(
+    "/admin/subdomains/count",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_admin_auth)],
+)
 def subdomain_count(
     request: Request,
     db: Session = Depends(get_db),
@@ -202,7 +273,11 @@ def subdomain_count(
     return templates.TemplateResponse("admin/partials/subdomain_count.html", context)
 
 
-@router.get("/admin/subdomains/table", response_class=HTMLResponse)
+@router.get(
+    "/admin/subdomains/table",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_admin_auth)],
+)
 def subdomain_table(
     request: Request,
     db: Session = Depends(get_db),
@@ -215,7 +290,11 @@ def subdomain_table(
     return templates.TemplateResponse("admin/partials/subdomain_table.html", context)
 
 
-@router.get("/admin/subdomains/{redirect_id}/row", response_class=HTMLResponse)
+@router.get(
+    "/admin/subdomains/{redirect_id}/row",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_admin_auth)],
+)
 def subdomain_row(
     request: Request,
     redirect_id: int,
@@ -232,7 +311,11 @@ def subdomain_row(
     return templates.TemplateResponse("admin/partials/subdomain_row.html", context)
 
 
-@router.get("/admin/subdomains/{redirect_id}/edit", response_class=HTMLResponse)
+@router.get(
+    "/admin/subdomains/{redirect_id}/edit",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_admin_auth)],
+)
 def subdomain_edit_row(
     request: Request,
     redirect_id: int,

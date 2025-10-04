@@ -1,8 +1,9 @@
 <span
+  class="theme-tab__count"
   id="subdomain-count"
   hx-get="/admin/subdomains/count"
   hx-trigger="load, refresh-subdomains from:body"
   hx-swap="outerHTML"
 >
-  {{ count }}
+  ({{ count }})
 </span>

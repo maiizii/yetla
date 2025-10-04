@@ -63,17 +63,29 @@
     return document.querySelector(selector);
   }
 
-  function buildHeaders(authHeader, extra) {
+  function buildHeaders(extra) {
     const headers = {
       "HX-Request": "true",
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     };
-
-    if (authHeader) {
-      headers.Authorization = authHeader;
-    }
-
     return Object.assign(headers, extra || {});
+  }
+
+  function redirectToLogin(target) {
+    const destination = target || "/admin/login";
+    window.location.href = destination;
+  }
+
+  function handleAuthRedirectFromStatus(status, locationHeader) {
+    if (status === 303 || status === 302) {
+      redirectToLogin(locationHeader || "/admin/login");
+      return true;
+    }
+    if (status === 401 || status === 403) {
+      redirectToLogin("/admin/login");
+      return true;
+    }
+    return false;
   }
 
   function toAbsoluteUrl(url) {
@@ -96,11 +108,19 @@
       absoluteUrl,
       Object.assign({ credentials: "include" }, options),
     );
+    if (
+      handleAuthRedirectFromStatus(
+        response.status,
+        response.headers.get("Location"),
+      )
+    ) {
+      return { response, text: "" };
+    }
     const text = await response.text();
     return { response, text };
   }
 
-  async function submitWithFallback(formLike, submitter, authHeaderValue) {
+  async function submitWithFallback(formLike, submitter) {
     if (!(formLike instanceof HTMLFormElement)) {
       return;
     }
@@ -151,7 +171,7 @@
     try {
       const { response, text } = await fetchFragment(targetUrl, {
         method,
-        headers: buildHeaders(authHeaderValue, {
+        headers: buildHeaders({
           "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
         }),
         body,
@@ -198,13 +218,13 @@
     dispatchSuccessEvent(formLike);
   }
 
-  async function refreshLinks(authHeader) {
+  async function refreshLinks() {
     const countAnchor = document.getElementById("short-link-count");
     if (countAnchor) {
       try {
         const { response, text } = await fetchFragment("/admin/links/count", {
           method: "GET",
-          headers: buildHeaders(authHeader),
+          headers: buildHeaders(),
         });
         if (response.ok) {
           swapContent(countAnchor, text, "outerHTML");
@@ -219,7 +239,7 @@
       try {
         const { response, text } = await fetchFragment("/admin/links/table", {
           method: "GET",
-          headers: buildHeaders(authHeader),
+          headers: buildHeaders(),
         });
         if (response.ok) {
           swapContent(tableContainer, text, "innerHTML");
@@ -230,13 +250,13 @@
     }
   }
 
-  async function refreshSubdomains(authHeader) {
+  async function refreshSubdomains() {
     const countAnchor = document.getElementById("subdomain-count");
     if (countAnchor) {
       try {
         const { response, text } = await fetchFragment("/admin/subdomains/count", {
           method: "GET",
-          headers: buildHeaders(authHeader),
+          headers: buildHeaders(),
         });
         if (response.ok) {
           swapContent(countAnchor, text, "outerHTML");
@@ -251,7 +271,7 @@
       try {
         const { response, text } = await fetchFragment("/admin/subdomains/table", {
           method: "GET",
-          headers: buildHeaders(authHeader),
+          headers: buildHeaders(),
         });
         if (response.ok) {
           swapContent(tableContainer, text, "innerHTML");
@@ -619,7 +639,6 @@
   }
 
   onReady(() => {
-    const authHeader = document.body.dataset.authHeader || "";
     const useFallback = typeof window.htmx === "undefined";
 
     restorePersistedTheme();
@@ -650,6 +669,17 @@
         const detail = event.detail || {};
         const { successful, xhr } = detail;
         const status = xhr && typeof xhr.status === "number" ? xhr.status : 0;
+        if (
+          xhr &&
+          handleAuthRedirectFromStatus(
+            status,
+            typeof xhr.getResponseHeader === "function"
+              ? xhr.getResponseHeader("Location")
+              : null,
+          )
+        ) {
+          return;
+        }
         const isSuccessful =
           typeof successful === "boolean"
             ? successful
@@ -674,8 +704,8 @@
       "htmx 未加载，使用回退逻辑处理短链子域管理后台交互。\n建议检查 CDN 是否可访问。"
     );
 
-    const refreshLinksHandler = () => refreshLinks(authHeader);
-    const refreshSubdomainsHandler = () => refreshSubdomains(authHeader);
+    const refreshLinksHandler = () => refreshLinks();
+    const refreshSubdomainsHandler = () => refreshSubdomains();
 
     document.body.addEventListener("refresh-links", refreshLinksHandler);
     document.body.addEventListener("refresh-subdomains", refreshSubdomainsHandler);
@@ -707,7 +737,7 @@
         typeof event.submitter !== "undefined" && event.submitter
           ? event.submitter
           : undefined;
-      await submitWithFallback(form, submitter, authHeader);
+      await submitWithFallback(form, submitter);
     });
 
     document.body.addEventListener("click", async (event) => {
@@ -723,7 +753,7 @@
           }
           if (form.hasAttribute("hx-post") || form.hasAttribute("hx-put")) {
             event.preventDefault();
-            await submitWithFallback(form, submitter, authHeader);
+            await submitWithFallback(form, submitter);
             return;
           }
         }
@@ -754,7 +784,7 @@
       try {
         const { response, text } = await fetchFragment(url, {
           method: isDelete ? "DELETE" : "GET",
-          headers: buildHeaders(authHeader),
+          headers: buildHeaders(),
         });
 
         if (target) {

@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from .deps import get_db, require_basic_auth
+from .deps import get_db, require_admin_auth
 from .models import Base, ShortLink, SubdomainRedirect, engine, ensure_subdomain_hits_column
 from .schemas import (
     ShortLink as ShortLinkSchema,
@@ -41,15 +41,15 @@ app = FastAPI(
 )
 
 
-from .views import (
+from .views import (  # noqa: E402  pylint: disable=wrong-import-position
     router as admin_router,
     templates as admin_templates,
-)  # noqa: E402  pylint: disable=wrong-import-position
+)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-app.include_router(admin_router, dependencies=[Depends(require_basic_auth)])
+app.include_router(admin_router)
 
 
 @app.on_event("startup")
@@ -289,7 +289,7 @@ def list_routes(db: Session = Depends(get_db)) -> list[SubdomainRedirect]:
 @app.get(
     "/api/links",
     response_model=list[ShortLinkSchema],
-    dependencies=[Depends(require_basic_auth)],
+    dependencies=[Depends(require_admin_auth)],
 )
 def list_short_links(db: Session = Depends(get_db)) -> list[ShortLink]:
     """列出所有短链接。"""
@@ -302,7 +302,7 @@ def list_short_links(db: Session = Depends(get_db)) -> list[ShortLink]:
     "/api/links",
     response_model=ShortLinkSchema,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_basic_auth)],
+    dependencies=[Depends(require_admin_auth)],
 )
 async def create_short_link(
     request: Request,
@@ -343,7 +343,7 @@ async def create_short_link(
 
 @app.delete(
     "/api/links/{link_id}",
-    dependencies=[Depends(require_basic_auth)],
+    dependencies=[Depends(require_admin_auth)],
 )
 def delete_short_link(
     link_id: int,
@@ -377,7 +377,7 @@ def delete_short_link(
 @app.put(
     "/api/links/{link_id}",
     response_model=ShortLinkSchema,
-    dependencies=[Depends(require_basic_auth)],
+    dependencies=[Depends(require_admin_auth)],
 )
 async def update_short_link(
     link_id: int,
@@ -427,7 +427,7 @@ async def update_short_link(
 @app.get(
     "/api/subdomains",
     response_model=list[SubdomainRedirectSchema],
-    dependencies=[Depends(require_basic_auth)],
+    dependencies=[Depends(require_admin_auth)],
 )
 def list_subdomains(db: Session = Depends(get_db)) -> list[SubdomainRedirect]:
     """列出所有子域跳转规则。"""
@@ -442,7 +442,7 @@ def list_subdomains(db: Session = Depends(get_db)) -> list[SubdomainRedirect]:
     "/api/subdomains",
     response_model=SubdomainRedirectSchema,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_basic_auth)],
+    dependencies=[Depends(require_admin_auth)],
 )
 async def create_subdomain(
     request: Request,
@@ -481,7 +481,7 @@ async def create_subdomain(
 
 @app.delete(
     "/api/subdomains/{redirect_id}",
-    dependencies=[Depends(require_basic_auth)],
+    dependencies=[Depends(require_admin_auth)],
 )
 def delete_subdomain(
     redirect_id: int,
@@ -516,7 +516,7 @@ def delete_subdomain(
 @app.put(
     "/api/subdomains/{redirect_id}",
     response_model=SubdomainRedirectSchema,
-    dependencies=[Depends(require_basic_auth)],
+    dependencies=[Depends(require_admin_auth)],
 )
 async def update_subdomain(
     redirect_id: int,
