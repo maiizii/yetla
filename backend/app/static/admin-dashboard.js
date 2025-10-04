@@ -670,7 +670,9 @@
       return;
     }
 
-    console.warn("htmx 未加载，使用回退逻辑处理管理后台交互。\n建议检查 CDN 是否可访问。");
+    console.warn(
+      "htmx 未加载，使用回退逻辑处理短链子域管理后台交互。\n建议检查 CDN 是否可访问。"
+    );
 
     const refreshLinksHandler = () => refreshLinks(authHeader);
     const refreshSubdomainsHandler = () => refreshSubdomains(authHeader);

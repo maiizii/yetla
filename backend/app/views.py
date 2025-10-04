@@ -22,6 +22,7 @@ ENV_BASE_DOMAIN = os.getenv("BASE_DOMAIN", "").strip().lower()
 EFFECTIVE_BASE_DOMAIN = ENV_BASE_DOMAIN or DEFAULT_BASE_DOMAIN
 BASE_URL = f"https://{EFFECTIVE_BASE_DOMAIN}".rstrip("/")
 SHORT_LINK_PREFIX = f"{BASE_URL}/"
+SUBDOMAIN_CODE_OPTIONS = [302, 301]
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 
@@ -83,7 +84,7 @@ def admin_dashboard(
             "short_links": short_links,
             "subdomains": subdomains,
             "short_code_suggestion": _generate_short_link_suggestion(db),
-            "subdomain_code_options": [302, 301],
+            "subdomain_code_options": SUBDOMAIN_CODE_OPTIONS,
         }
     )
     return templates.TemplateResponse("admin/index.html", context)
@@ -116,7 +117,7 @@ def admin_logout() -> HTMLResponse:
             </style>
           </head>
           <body>
-            <h1>已退出 yet.la 管理后台</h1>
+            <h1>已退出 yet.la 短链子域管理后台</h1>
             <p>关闭此页面或<a href="/admin">重新登录</a>以继续管理。</p>
           </body>
         </html>
@@ -244,5 +245,5 @@ def subdomain_edit_row(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
 
     context = _base_context(request)
-    context.update({"item": redirect})
+    context.update({"item": redirect, "subdomain_code_options": SUBDOMAIN_CODE_OPTIONS})
     return templates.TemplateResponse("admin/partials/subdomain_edit_row.html", context)
