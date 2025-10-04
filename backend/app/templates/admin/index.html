@@ -16,11 +16,11 @@
         data-theme-option="aurora"
         tabindex="0"
         role="button"
-        aria-label="切换至 Aurora Glow 主题预览"
+        aria-label="切换至 Aurora Glow 亮色主题预览"
       >
         <div class="theme-preview-card__header">
           <span class="theme-preview-card__title">Aurora Glow</span>
-          <span class="theme-preview-card__tag">清新渐变 · 光感玻璃</span>
+          <span class="theme-preview-card__tag">亮色 · 渐变玻璃</span>
         </div>
         <div class="theme-preview-card__canvas">
           <div class="theme-preview-surface theme-preview-surface--login">
@@ -43,9 +43,9 @@
         </div>
         <div class="theme-preview-card__actions">
           <button type="button" class="theme-button theme-button--solid" data-theme-apply="aurora">
-            使用 Aurora Glow
+            使用亮色主题
           </button>
-          <p>渐变玻璃与柔和阴影为后台营造灵动氛围，适合品牌推广、营销活动或需要突出科技感的场景。</p>
+          <p>清爽的渐变与柔和高光适合日间使用的运营后台，兼顾品牌展示与高对比度表单体验。</p>
         </div>
       </article>
       <article
@@ -53,11 +53,11 @@
         data-theme-option="nebula"
         tabindex="0"
         role="button"
-        aria-label="切换至 Nebula Pulse 主题预览"
+        aria-label="切换至 Nebula Pulse 暗色主题预览"
       >
         <div class="theme-preview-card__header">
           <span class="theme-preview-card__title">Nebula Pulse</span>
-          <span class="theme-preview-card__tag">霓虹夜色 · 深色宇宙</span>
+          <span class="theme-preview-card__tag">暗色 · 霓虹宇宙</span>
         </div>
         <div class="theme-preview-card__canvas">
           <div class="theme-preview-surface theme-preview-surface--login">
@@ -80,46 +80,9 @@
         </div>
         <div class="theme-preview-card__actions">
           <button type="button" class="theme-button theme-button--solid" data-theme-apply="nebula">
-            使用 Nebula Pulse
+            使用暗色主题
           </button>
-          <p>深色基调搭配霓虹蓝光，适合偏开发者、夜间模式或需要沉浸式体验的 SaaS 管理后台。</p>
-        </div>
-      </article>
-      <article
-        class="theme-preview-card"
-        data-theme-option="noir"
-        tabindex="0"
-        role="button"
-        aria-label="切换至 Noir Contrast 主题预览"
-      >
-        <div class="theme-preview-card__header">
-          <span class="theme-preview-card__title">Noir Contrast</span>
-          <span class="theme-preview-card__tag">极简留白 · 强烈对比</span>
-        </div>
-        <div class="theme-preview-card__canvas">
-          <div class="theme-preview-surface theme-preview-surface--login">
-            <div class="theme-preview-label theme-preview-label--wide"></div>
-            <div class="theme-preview-input"></div>
-            <div class="theme-preview-input"></div>
-            <div class="theme-preview-button-row">
-              <div class="theme-preview-button"></div>
-            </div>
-          </div>
-          <div class="theme-preview-surface">
-            <div class="theme-preview-label"></div>
-            <div class="theme-preview-input"></div>
-            <div class="theme-preview-label theme-preview-label--narrow"></div>
-            <div class="theme-preview-button-row">
-              <div class="theme-preview-button"></div>
-              <div class="theme-preview-button theme-preview-button--ghost"></div>
-            </div>
-          </div>
-        </div>
-        <div class="theme-preview-card__actions">
-          <button type="button" class="theme-button theme-button--solid" data-theme-apply="noir">
-            使用 Noir Contrast
-          </button>
-          <p>经典黑白配色搭配红色点缀，兼顾商务感与冲击力，适合需要稳重又不失锋芒的企业后台。</p>
+          <p>沉浸式暗色和霓虹脉冲降低夜间眩光，适合开发者和需要长时间专注操作的管理团队。</p>
         </div>
       </article>
     </div>
@@ -153,7 +116,7 @@
         class="theme-tab {% if active_tab == 'subdomains' %}is-active{% endif %}"
       >
         <span class="theme-tab__dot"></span>
-        子域跳转 (
+        子域 (
         {% with count=subdomains|length %}
         {% include "admin/partials/subdomain_count.html" %}
         {% endwith %}
@@ -167,7 +130,7 @@
           <div class="theme-card__header">
             <h2 class="theme-card__title">创建短链</h2>
             <p class="theme-card__subtitle">
-              仅需填写目标地址，可选填短链编码。提交后表格会自动刷新，适合批量验证跳转配置。
+              填写目标地址，可按需调整短链后缀；前缀 {{ short_link_prefix }} 已固定展示，提交后表格会自动刷新。
             </p>
           </div>
           <div class="theme-card__body">
@@ -184,14 +147,22 @@
             >
               <div class="theme-form__grid theme-form__grid--two">
                 <div class="theme-field">
-                  <label for="code" class="theme-label">短链编码（可选）</label>
-                  <input
-                    id="code"
-                    name="code"
-                    type="text"
-                    class="theme-input"
-                    placeholder="留空则自动生成"
-                  />
+                  <label for="code" class="theme-label">短链（可改）</label>
+                  <div class="theme-input-affix">
+                    <span class="theme-input-affix__addon theme-input-affix__addon--prefix">{{ short_link_prefix }}</span>
+                    <input
+                      id="code"
+                      name="code"
+                      type="text"
+                      class="theme-input-affix__input"
+                      value="{{ short_code_suggestion or '' }}"
+                      data-random-code="true"
+                      data-random-code-length="{{ short_code_length }}"
+                      autocomplete="off"
+                      spellcheck="false"
+                      placeholder="自动生成，可修改"
+                    />
+                  </div>
                 </div>
                 <div class="theme-field theme-form__span-full">
                   <label for="target_url" class="theme-label">目标地址 *</label>
@@ -207,7 +178,7 @@
               </div>
               <div class="theme-form__footer">
                 <p class="theme-helper">
-                  表单直接调用 <code>POST /api/links</code>，遵循与外部调用一致的字段校验。
+                  表单直接调用 <code>POST /api/links</code>，默认提供随机短链编码，可在提交前调整。
                 </p>
                 <button type="submit" class="theme-button theme-button--solid">
                   保存短链
@@ -226,7 +197,7 @@
           <div class="theme-card__header">
             <h2 class="theme-card__title">短链列表</h2>
             <p class="theme-card__subtitle">
-              查看短链编码、跳转目标与访问次数，可直接在操作列进行编辑或删除。
+              查看短链、跳转目标与访问次数，可直接复制、编辑或删除。
             </p>
           </div>
           <div
@@ -244,9 +215,9 @@
       <div class="theme-stack">
         <section class="theme-card">
           <div class="theme-card__header">
-            <h2 class="theme-card__title">创建子域跳转</h2>
+            <h2 class="theme-card__title">创建子域</h2>
             <p class="theme-card__subtitle">
-              Host 请填写完整域名，状态码默认为 302，可按需切换为 301。成功后列表会自动刷新。
+              填写子域前缀即可，后缀 .{{ base_domain }} 将自动拼接；状态码默认为 302，支持在下拉菜单中切换。
             </p>
           </div>
           <div class="theme-card__body">
@@ -263,28 +234,33 @@
             >
               <div class="theme-form__grid theme-form__grid--three">
                 <div class="theme-field">
-                  <label for="host" class="theme-label">Host *</label>
-                  <input
-                    id="host"
-                    name="host"
-                    type="text"
-                    required
-                    class="theme-input"
-                    placeholder="如 foo.yet.la"
-                  />
+                  <label for="subdomain-prefix" class="theme-label">子域 *</label>
+                  <div
+                    class="theme-input-affix"
+                    data-domain-input
+                    data-domain-suffix="{{ base_domain }}"
+                  >
+                    <input
+                      id="subdomain-prefix"
+                      type="text"
+                      required
+                      class="theme-input-affix__input"
+                      placeholder="如 marketing"
+                      autocomplete="off"
+                      spellcheck="false"
+                      data-domain-input-field
+                    />
+                    <span class="theme-input-affix__addon theme-input-affix__addon--suffix">.{{ base_domain }}</span>
+                    <input type="hidden" name="host" data-domain-input-hidden />
+                  </div>
                 </div>
                 <div class="theme-field">
-                  <label for="code" class="theme-label">状态码</label>
-                  <input
-                    id="code"
-                    name="code"
-                    type="number"
-                    value="302"
-                    min="301"
-                    max="302"
-                    step="1"
-                    class="theme-input"
-                  />
+                  <label for="subdomain-code" class="theme-label">状态码</label>
+                  <select id="subdomain-code" name="code" class="theme-select">
+                    {% for option in subdomain_code_options %}
+                    <option value="{{ option }}" {% if option == 302 %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                  </select>
                 </div>
                 <div class="theme-field theme-form__span-full">
                   <label for="target_url" class="theme-label">目标地址 *</label>
@@ -300,10 +276,10 @@
               </div>
               <div class="theme-form__footer">
                 <p class="theme-helper">
-                  表单调用 <code>POST /api/subdomains</code>，与外部接口保持一致。
+                  表单调用 <code>POST /api/subdomains</code>，子域前缀会自动补全为 .{{ base_domain }} 的完整域名。
                 </p>
                 <button type="submit" class="theme-button theme-button--solid">
-                  保存子域跳转
+                  保存子域
                 </button>
               </div>
             </form>
@@ -317,9 +293,9 @@
         </section>
         <section class="theme-card">
           <div class="theme-card__header">
-            <h2 class="theme-card__title">子域跳转列表</h2>
+            <h2 class="theme-card__title">子域列表</h2>
             <p class="theme-card__subtitle">
-              快速检索当前子域配置、跳转目标与状态码，可直接删除或进入编辑态。
+              快速查看子域、跳转目标与状态码，可直接复制链接、删除或进入编辑。
             </p>
           </div>
           <div

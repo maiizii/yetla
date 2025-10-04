@@ -9,15 +9,20 @@
     >
       <div class="theme-form__grid theme-form__grid--two">
         <div class="theme-field">
-          <label for="code-{{ item.id }}" class="theme-label">短链编码</label>
-          <input
-            id="code-{{ item.id }}"
-            name="code"
-            type="text"
-            required
-            value="{{ item.code }}"
-            class="theme-input"
-          />
+          <label for="code-{{ item.id }}" class="theme-label">短链</label>
+          <div class="theme-input-affix">
+            <span class="theme-input-affix__addon theme-input-affix__addon--prefix">{{ short_link_prefix }}</span>
+            <input
+              id="code-{{ item.id }}"
+              name="code"
+              type="text"
+              required
+              value="{{ item.code }}"
+              class="theme-input-affix__input"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
         </div>
         <div class="theme-field theme-form__span-full">
           <label for="target-{{ item.id }}" class="theme-label">目标地址</label>

@@ -2,7 +2,7 @@
 <table class="theme-table">
   <thead>
     <tr>
-      <th scope="col">Host</th>
+      <th scope="col">子域</th>
       <th scope="col">目标地址</th>
       <th scope="col">状态码</th>
       <th scope="col">访问次数</th>
@@ -18,6 +18,6 @@
 </table>
 {% else %}
 <div class="theme-table__empty">
-  暂无子域跳转规则，可通过上方表单或 <code>/api/subdomains</code> 接口创建。
+  暂无子域配置，可通过上方表单或 <code>/api/subdomains</code> 接口创建。
 </div>
 {% endif %}

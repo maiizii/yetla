@@ -120,7 +120,7 @@ def test_admin_short_link_partials(client: "SimpleClient") -> None:
 
     table = client.get("/admin/links/table", auth=ADMIN_AUTH)
     assert table.status_code == 200
-    assert "短链编码" in table.text
+    assert "<th scope=\"col\">短链</th>" in table.text
 
     count = client.get("/admin/links/count", auth=ADMIN_AUTH)
     assert count.status_code == 200
