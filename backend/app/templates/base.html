@@ -844,6 +844,63 @@
         justify-self: start;
       }
 
+      .theme-checkbox {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        font-weight: 600;
+        color: var(--theme-text-secondary);
+      }
+
+      .theme-checkbox__control {
+        appearance: none;
+        width: 1.125rem;
+        height: 1.125rem;
+        border-radius: 0.35rem;
+        border: 2px solid var(--theme-input-border);
+        background: var(--theme-input-bg);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .theme-checkbox__control::after {
+        content: "";
+        width: 0.55rem;
+        height: 0.55rem;
+        border-radius: 0.2rem;
+        background: var(--theme-button-solid-bg);
+        transform: scale(0);
+        transition: transform 0.18s ease;
+      }
+
+      .theme-checkbox__control:focus-visible {
+        outline: none;
+        border-color: var(--theme-input-focus-border);
+        box-shadow: var(--theme-input-focus-shadow);
+      }
+
+      .theme-checkbox__control:checked {
+        border-color: var(--theme-button-solid-bg);
+        background: rgba(99, 102, 241, 0.16);
+      }
+
+      :root[data-theme="nebula"] .theme-checkbox__control:checked {
+        border-color: var(--theme-primary);
+        background: rgba(56, 189, 248, 0.18);
+      }
+
+      .theme-checkbox__control:checked::after {
+        transform: scale(1);
+      }
+
+      .theme-checkbox__label {
+        cursor: pointer;
+      }
+
       .theme-label {
         font-size: 0.9rem;
         font-weight: 600;

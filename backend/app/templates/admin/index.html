@@ -300,11 +300,19 @@
                   />
                 </div>
                 <div class="theme-field theme-form__span-full">
-                  <label class="theme-checkbox">
+                  <div class="theme-checkbox">
                     <input type="hidden" name="is_admin" value="0" />
-                    <input type="checkbox" name="is_admin" value="1" />
-                    <span>授予管理员权限</span>
-                  </label>
+                    <input
+                      id="create-is-admin"
+                      class="theme-checkbox__control"
+                      type="checkbox"
+                      name="is_admin"
+                      value="1"
+                    />
+                    <label for="create-is-admin" class="theme-checkbox__label">
+                      授予管理员权限
+                    </label>
+                  </div>
                 </div>
               </div>
               <div class="theme-form__footer theme-form__footer--center">
