@@ -4,6 +4,20 @@
   const DEFAULT_THEME = "aurora";
   const RANDOM_CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const COPY_FEEDBACK_TIMEOUT = 2000;
+  const ROW_RESTORE_CONFIG = [
+    {
+      prefix: "short-link-row-",
+      buildUrl: (id) => `/admin/links/${id}/row`,
+    },
+    {
+      prefix: "subdomain-row-",
+      buildUrl: (id) => `/admin/subdomains/${id}/row`,
+    },
+    {
+      prefix: "user-row-",
+      buildUrl: (id) => `/admin/users/${id}/row`,
+    },
+  ];
   let storedThemeValue = null;
 
   function onReady(callback) {
@@ -118,6 +132,78 @@
     }
     const text = await response.text();
     return { response, text };
+  }
+
+  function getRowRestoreUrl(row) {
+    if (!(row instanceof HTMLElement)) {
+      return null;
+    }
+
+    const rowId = typeof row.id === "string" ? row.id : "";
+    if (!rowId) {
+      return null;
+    }
+
+    for (const config of ROW_RESTORE_CONFIG) {
+      if (!rowId.startsWith(config.prefix)) {
+        continue;
+      }
+      const identifier = rowId.slice(config.prefix.length);
+      if (!identifier) {
+        return null;
+      }
+      try {
+        return config.buildUrl(identifier);
+      } catch (error) {
+        console.warn("Failed to build restore URL", rowId, error);
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  async function restoreRow(row) {
+    const url = getRowRestoreUrl(row);
+    if (!url) {
+      return;
+    }
+
+    try {
+      const { response, text } = await fetchFragment(url, {
+        method: "GET",
+        headers: buildHeaders(),
+      });
+
+      if (response.ok) {
+        swapContent(row, text, "outerHTML");
+      }
+    } catch (error) {
+      console.error("Failed to restore editing row", error);
+    }
+  }
+
+  async function closeOtherEditors(excludeRow) {
+    const editingRows = Array.from(
+      document.querySelectorAll(".theme-table__row--editing"),
+    );
+
+    if (!editingRows.length) {
+      return;
+    }
+
+    const tasks = editingRows
+      .filter((row) => !(excludeRow && row === excludeRow))
+      .map((row) => restoreRow(row));
+
+    await Promise.all(tasks);
+  }
+
+  function isEditUrl(url) {
+    if (typeof url !== "string") {
+      return false;
+    }
+    return /\/edit(?:\?.*)?$/i.test(url.trim());
   }
 
   async function submitWithFallback(formLike, submitter) {
@@ -751,6 +837,11 @@
         if (!(source instanceof HTMLElement)) {
           return;
         }
+        const editUrl = source.getAttribute("hx-get");
+        if (isEditUrl(editUrl)) {
+          const row = source.closest("tr");
+          closeOtherEditors(row || undefined);
+        }
         const form = source.closest("form");
         if (form) {
           bindDomainInputs(form);
@@ -852,6 +943,14 @@
 
       const isGet = trigger.hasAttribute("hx-get");
       const isDelete = trigger.hasAttribute("hx-delete");
+      const targetRow = trigger.closest("tr");
+
+      if (isGet) {
+        const getUrl = trigger.getAttribute("hx-get");
+        if (isEditUrl(getUrl)) {
+          await closeOtherEditors(targetRow || undefined);
+        }
+      }
 
       if (isDelete) {
         const message = trigger.getAttribute("hx-confirm");
