@@ -38,14 +38,14 @@ def ensure_default_admin() -> None:
         if not existing.is_admin:
             existing.is_admin = True
             updated = True
-        if existing.email != DEFAULT_ADMIN_EMAIL:
+        if not existing.email:
             existing.email = DEFAULT_ADMIN_EMAIL
             updated = True
 
-        if not verify_password(DEFAULT_ADMIN_PASSWORD, existing.password_hash):
-            existing.password_hash = hash_password(DEFAULT_ADMIN_PASSWORD)
-            updated = True
-        elif needs_rehash(existing.password_hash):
+        password_matches_default = verify_password(
+            DEFAULT_ADMIN_PASSWORD, existing.password_hash
+        )
+        if password_matches_default and needs_rehash(existing.password_hash):
             existing.password_hash = hash_password(DEFAULT_ADMIN_PASSWORD)
             updated = True
 
