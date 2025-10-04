@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="theme-layout">
+  <section class="theme-shell">
+    <div class="theme-shell__body theme-shell__body--center">
+      <section class="theme-card theme-card--narrow">
+        <div class="theme-card__header">
+          <h2 class="theme-card__title">登录 yet.la 短链子域管理后台</h2>
+          <p class="theme-card__subtitle">输入管理员账号与密码以继续管理短链与子域。</p>
+        </div>
+        <div class="theme-card__body">
+          <form
+            class="theme-form"
+            action="/admin/login{% if redirect_target %}?next={{ redirect_target|urlencode }}{% endif %}"
+            method="post"
+          >
+            <div class="theme-field">
+              <label for="username" class="theme-label">账号 *</label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                class="theme-input"
+                autocomplete="username"
+                spellcheck="false"
+                value="{{ username_value }}"
+              />
+            </div>
+            <div class="theme-field">
+              <label for="password" class="theme-label">密码 *</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                class="theme-input"
+                autocomplete="current-password"
+              />
+            </div>
+            <div class="theme-form__footer theme-form__footer--center">
+              <button type="submit" class="theme-button theme-button--solid theme-button--block">
+                登录
+              </button>
+            </div>
+          </form>
+          {% if login_error %}
+          <div class="theme-login-feedback" role="alert">{{ login_error }}</div>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+  </section>
+</div>
+{% endblock %}

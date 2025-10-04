@@ -65,6 +65,7 @@ class SimpleResponse:
 class SimpleClient:
     def __init__(self) -> None:
         self._app = app
+        self._cookies: dict[str, str] = {}
 
     def _run_request(
         self,
@@ -138,6 +139,10 @@ class SimpleClient:
     ) -> SimpleResponse:
         prepared_headers = {k.lower(): v for k, v in (headers or {}).items()}
         prepared_headers.setdefault("host", "testserver")
+        if self._cookies and "cookie" not in prepared_headers:
+            prepared_headers["cookie"] = "; ".join(
+                f"{key}={value}" for key, value in self._cookies.items()
+            )
         body = b""
         if json_body is not None and data is not None:
             raise ValueError("json_body and data cannot be provided together")
@@ -155,6 +160,28 @@ class SimpleClient:
             prepared_headers["authorization"] = f"Basic {token}"
 
         response = self._run_request(method, url, headers=prepared_headers, body=body)
+        set_cookie = response.headers.get("set-cookie")
+        if set_cookie:
+            cookie_pair, *attributes = set_cookie.split(";")
+            name, _, value = cookie_pair.partition("=")
+            cookie_name = name.strip()
+            cookie_value = value.strip()
+            remove_cookie = False
+            for attribute in attributes:
+                attr = attribute.strip().lower()
+                if attr.startswith("max-age="):
+                    try:
+                        max_age = int(attr.split("=", 1)[1].strip())
+                    except ValueError:
+                        max_age = None
+                    if max_age is not None and max_age <= 0:
+                        remove_cookie = True
+                if attr.startswith("expires=") and "1970" in attr:
+                    remove_cookie = True
+            if not cookie_value or remove_cookie:
+                self._cookies.pop(cookie_name, None)
+            else:
+                self._cookies[cookie_name] = cookie_value
         if (
             follow_redirects
             and response.status_code in REDIRECT_STATUSES

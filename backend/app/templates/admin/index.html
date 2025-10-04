@@ -9,27 +9,26 @@
         class="theme-tab {% if active_tab == 'links' %}is-active{% endif %}"
       >
         <span class="theme-tab__dot"></span>
-        短链 (
+        短链
         <span
+          class="theme-tab__count"
           id="short-link-count"
           hx-get="/admin/links/count"
           hx-trigger="load, refresh-links from:body"
           hx-swap="outerHTML"
         >
-          {{ short_links|length }}
+          ({{ short_links|length }})
         </span>
-        )
       </a>
       <a
         href="?tab=subdomains"
         class="theme-tab {% if active_tab == 'subdomains' %}is-active{% endif %}"
       >
         <span class="theme-tab__dot"></span>
-        子域 (
+        子域
         {% with count=subdomains|length %}
         {% include "admin/partials/subdomain_count.html" %}
         {% endwith %}
-        )
       </a>
     </nav>
     <div class="theme-shell__body">
