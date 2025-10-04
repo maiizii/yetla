@@ -841,6 +841,10 @@
         width: min(18rem, 100%);
       }
 
+      .theme-form__grid--user-identity .theme-field select.theme-input {
+        width: min(18rem, 100%);
+      }
+
       @media (max-width: 640px) {
         .theme-form__grid--user-identity {
           grid-template-columns: minmax(0, 1fr);
@@ -853,6 +857,10 @@
         }
 
         .theme-form__grid--user-identity .theme-field:nth-child(-n + 2) .theme-input {
+          width: 100%;
+        }
+
+        .theme-form__grid--user-identity .theme-field select.theme-input {
           width: 100%;
         }
       }
