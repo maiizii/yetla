@@ -825,20 +825,35 @@
       }
 
       .theme-form__grid--user-identity {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(10rem, auto);
+        grid-template-columns: repeat(2, minmax(12rem, 18rem)) minmax(10rem, auto);
         align-items: end;
+        justify-items: start;
       }
 
       .theme-form__grid--user-identity .theme-field {
-        width: 100%;
-        max-width: none;
+        width: auto;
+        max-width: 18rem;
         min-width: 0;
-        justify-self: stretch;
+        justify-self: start;
+      }
+
+      .theme-form__grid--user-identity .theme-field:nth-child(-n + 2) .theme-input {
+        width: min(18rem, 100%);
       }
 
       @media (max-width: 640px) {
         .theme-form__grid--user-identity {
           grid-template-columns: minmax(0, 1fr);
+          justify-items: stretch;
+        }
+
+        .theme-form__grid--user-identity .theme-field {
+          max-width: none;
+          width: 100%;
+        }
+
+        .theme-form__grid--user-identity .theme-field:nth-child(-n + 2) .theme-input {
+          width: 100%;
         }
       }
 
