@@ -12,7 +12,7 @@
 ```
 .
 ├── apps/                  # 历史示例页面（默认不挂载到生产 Nginx）
-├── backend/               # FastAPI 服务，含管理后台、API 与数据库模型
+├── backend/               # FastAPI 服务，含管理后台、API 与数据库模型（含用户、短链、子域等表）
 ├── docs/                  # 项目文档、运维手册与脚本示例
 ├── infra/nginx/           # Nginx 镜像构建与配置模板
 ├── scripts/               # 部署辅助脚本（安装、冒烟测试、备份示例）
@@ -27,11 +27,11 @@
    - 需在 DNS 服务商（推荐 Cloudflare）配置 `yet.la` 与 `*.yet.la` 的泛解析指向入口服务器。
    - 熟悉 Cloudflare 代理模式及 SSL/TLS 配置，确保源站证书有效并启用 Full (strict)。
 2. **跳转与统计**
-   - FastAPI 通过数据库维护短链与子域跳转，并自动统计命中次数；了解 `backend/app/models.py` 中的字段设计有助于二次开发。
-   - 管理后台基于 HTMX 实现无刷新更新，可复用模板体系扩展新功能。
+   - FastAPI 通过数据库维护短链与子域跳转，并自动统计命中次数；了解 `backend/app/models.py` 中的字段设计（含 `users` 关联）有助于二次开发。
+   - 管理后台基于 HTMX 实现无刷新更新，可复用模板体系扩展新功能；布局已适配移动端，方便随时运维。
 3. **认证与安全**
-   - 当前版本使用 HTTP Basic + 服务端会话，建议配合 Cloudflare/防火墙限制来源 IP，并在 `.env` 中配置强密码与 `SESSION_SECRET`。
-   - 参考根目录 `README.md` 的安全基线章节，梳理日志留存与备份策略。
+   - 当前版本使用 HTTP Basic + 服务端会话，支持在后台创建多位用户并分配管理员权限；建议配合 Cloudflare/防火墙限制来源 IP，并在 `.env` 中配置强密码与 `SESSION_SECRET`。
+   - 参考根目录 `README.md` 的安全基线章节，梳理日志留存与备份策略；新用户需登录后及时通过「修改密码」入口轮换凭据。
 4. **可观测性与运维**
    - 通过 `docker compose logs`、`scripts/proxy-smoke.sh` 等工具快速定位入口问题。
    - 结合 `docs/backup-example.sh` 制定数据库与配置的定期备份方案。
@@ -39,8 +39,8 @@
 ## 上手建议
 1. **启动生产环境**：按照根目录 `README.md` 的「快速开始」完成 `.env`、证书与 `docker compose up -d --build`，确认 `https://<域名>/admin` 可登录。
 2. **理解 Nginx 架构**：阅读 `infra/nginx/conf.d/yetla.upstream.conf` 以及入口脚本，掌握证书挂载、反代与自愈机制。
-3. **熟悉后端实现**：重点阅读 `backend/app/main.py`、`views.py` 与 `models.py`，了解 API、HTMX 模板与数据库迁移逻辑。
-4. **扩展流程与文档**：新增功能时，同步更新 `docs/` 下的设计说明与运维手册，保持文档与实现同步。
+3. **熟悉后端实现**：重点阅读 `backend/app/main.py`、`views.py` 与 `models.py`，了解 API、HTMX 模板与数据库迁移逻辑，尤其是用户 CRUD、密码修改与权限校验的依赖函数。
+4. **扩展流程与文档**：新增功能时，同步更新 `docs/` 下的设计说明与运维手册，保持文档与实现同步；涉及权限或 UI 变更时请验证移动端显示效果。
 5. **安全合规**：为生产环境配置强随机密码、`SESSION_SECRET` 与访问白名单，并评估进一步的审计与告警需求。
 
 ## 下一步工作建议

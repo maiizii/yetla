@@ -39,7 +39,8 @@
 ```
 
 - **统一反向代理**：`infra/nginx/conf.d/yetla.upstream.conf` 监听 `80/443`，负责 HTTP→HTTPS 重定向与上游代理。
-- **认证后台 + API**：`backend/app/main.py` 提供 HTMX 管理界面及 REST API，所有写操作强制 HTTP Basic 认证。
+- **认证后台 + API**：`backend/app/main.py` 提供 HTMX 管理界面及 REST API，所有写操作需登录（支持 HTTP Basic 或后台表单）。
+- **多用户权限管理**：`backend/app/models.py` 中新增 `users` 表，支持区分管理员与普通用户，并在后台界面完成用户 CRUD 与密码管理。
 - **部署脚本**：`docker-compose*.yml` 与 `infra/nginx/docker-entrypoint.d/` 负责容器化部署与证书挂载自检。
 
 更多背景信息请参阅 [docs/NGINX_SUBDOMAIN_ROUTING.md](docs/NGINX_SUBDOMAIN_ROUTING.md)。该文档结合最新的生产配置，说明了如何使用 Nginx 通过数据库驱动的规则完成泛域名跳转。
@@ -245,8 +246,8 @@ server {
 ### 管理后台
 
 - 入口：`https://<你的域名>/admin`
-- 认证：浏览器弹窗要求输入 `.env` 中的 `ADMIN_USER` / `ADMIN_PASS`。
-- 功能：通过 HTMX 调用 `/api/links` 与 `/api/subdomains` 完成 CRUD，错误信息会直接反馈在页面中。
+- 认证：支持登录页表单或 HTTP Basic，两者都会将身份信息写入服务器端会话；默认凭据来自 `.env` 的 `ADMIN_USER` / `ADMIN_PASS`。
+- 功能：通过 HTMX 调用 `/api/links`、`/api/subdomains` 与 `/api/users` 完成 CRUD，并提供「修改密码」入口；界面组件在移动端下自动折叠为单列视图，便于手机端运维。
 
 ### 访客访问
 
@@ -261,14 +262,19 @@ server {
 | --- | --- | --- | --- | --- |
 | GET | `/healthz` | 健康检查 | 无 | 200 |
 | GET | `/routes` | 查询所有子域跳转规则 | 无 | 200 |
-| GET | `/api/links` | 列出短链接 | HTTP Basic | 200 |
-| POST | `/api/links` | 新增短链接（`code` 为空时自动生成） | HTTP Basic | 201 / 409 |
-| PUT | `/api/links/{id}` | 更新短链接（支持修改 code 与目标地址） | HTTP Basic | 200 / 404 / 409 |
-| DELETE | `/api/links/{id}` | 删除短链接 | HTTP Basic | 204 / 404 |
-| GET | `/api/subdomains` | 列出子域跳转 | HTTP Basic | 200 |
-| POST | `/api/subdomains` | 新增子域跳转（`host` 为完整域名） | HTTP Basic | 201 / 409 |
-| PUT | `/api/subdomains/{id}` | 更新子域跳转（含 Host/URL/状态码） | HTTP Basic | 200 / 404 / 409 |
-| DELETE | `/api/subdomains/{id}` | 删除子域跳转 | HTTP Basic | 204 / 404 |
+| GET | `/api/links` | 列出短链接 | 需要登录 | 200 |
+| POST | `/api/links` | 新增短链接（`code` 为空时自动生成） | 需要登录 | 201 / 409 |
+| PUT | `/api/links/{id}` | 更新短链接（支持修改 code 与目标地址） | 需要登录 | 200 / 404 / 409 |
+| DELETE | `/api/links/{id}` | 删除短链接 | 需要登录 | 204 / 404 |
+| GET | `/api/subdomains` | 列出子域跳转 | 需要登录 | 200 |
+| POST | `/api/subdomains` | 新增子域跳转（`host` 为完整域名） | 需要登录 | 201 / 409 |
+| PUT | `/api/subdomains/{id}` | 更新子域跳转（含 Host/URL/状态码） | 需要登录 | 200 / 404 / 409 |
+| DELETE | `/api/subdomains/{id}` | 删除子域跳转 | 需要登录 | 204 / 404 |
+| GET | `/api/users` | 列出平台用户（管理员限定） | 需要管理员权限 | 200 |
+| POST | `/api/users` | 创建用户（支持设置管理员角色） | 需要管理员权限 | 201 / 409 |
+| PUT | `/api/users/{id}` | 更新用户资料与密码 | 需要管理员权限 | 200 / 400 / 404 / 409 |
+| DELETE | `/api/users/{id}` | 删除用户（至少保留一名管理员） | 需要管理员权限 | 204 / 400 / 404 |
+| POST | `/api/users/me/password` | 当前登录用户修改密码 | 需要登录 | 204 / 400 / 404 |
 | GET | `/{code}` | 短链接跳转并累积访问量 | 无 | 302 / 404 |
 | ANY | `/{path}` | 根据 `Host` 匹配子域跳转，未命中则返回 404 文本 | 无 | 30x / 404 |
 
@@ -310,8 +316,8 @@ curl -sk -u admin:changeme \
 
 | 变量名 | 说明 |
 | --- | --- |
-| `ADMIN_USER` | 管理后台与 API 的 Basic Auth 用户名。 |
-| `ADMIN_PASS` | 管理后台与 API 的 Basic Auth 密码。 |
+| `ADMIN_USER` | 管理后台与 API 的初始管理员用户名（首次启动会同步创建用户记录）。 |
+| `ADMIN_PASS` | 管理后台与 API 的初始管理员密码。 |
 | `BASE_DOMAIN` | 系统管理的基础域名，例如 `yet.la`。设置后仅允许该域名下的短链入口。 |
 | `SHORT_CODE_LEN` | 自动生成短链接编码的默认长度（默认 `6`）。 |
 | `DATABASE_URL` | SQLAlchemy 兼容的数据库连接串，默认为 `sqlite:////data/data.db`。可指向外部 PostgreSQL/MySQL。 |
@@ -320,7 +326,7 @@ curl -sk -u admin:changeme \
 ## 数据存储
 
 - 后端默认使用 SQLite，数据库位于容器内 `/data/data.db`；若设置 `DATABASE_URL`，会自动创建对应目录或连接外部数据库。
-- `docker-compose.yml` 将仓库根目录的 `./data` 挂载到容器 `/data`，FastAPI 在启动钩子中确保目录存在并创建表结构以及历史数据库的补丁字段（如 `hits` 统计列）。
+- `docker-compose.yml` 将仓库根目录的 `./data` 挂载到容器 `/data`，FastAPI 在启动钩子中确保目录存在并创建表结构以及历史数据库的补丁字段（如 `hits` 统计列、`users` 表及外键关系）。
 - 子域与短链都会累积访问次数，可在后台界面查看；建议定期备份 `data/data.db` 或目标数据库，可参考 [docs/backup-example.sh](docs/backup-example.sh)。
 
 ## 安全基线
