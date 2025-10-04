@@ -3,11 +3,6 @@
 {% block content %}
 <div class="theme-layout">
   <section class="theme-shell">
-    <div class="theme-shell__banner">
-      <div class="theme-tagline">
-        管理后台的所有表单均直接调用 <code>/api/*</code> 接口，请按接口契约填写字段；若提交失败会返回后端原始错误信息，便于快速排查。
-      </div>
-    </div>
     <nav class="theme-tabs" aria-label="Sections">
       <a
         href="?tab=links"
@@ -44,7 +39,7 @@
           <div class="theme-card__header">
             <h2 class="theme-card__title">创建短链</h2>
             <p class="theme-card__subtitle">
-              填写目标地址，可按需调整短链后缀；前缀 {{ short_link_prefix }} 已固定展示，提交后表格会自动刷新。
+              填写目标地址，可按需调整短链后缀。
             </p>
           </div>
           <div class="theme-card__body">
@@ -90,12 +85,9 @@
                   />
                 </div>
               </div>
-              <div class="theme-form__footer">
-                <p class="theme-helper">
-                  表单直接调用 <code>POST /api/links</code>，默认提供随机短链编码，可在提交前调整。
-                </p>
+              <div class="theme-form__footer theme-form__footer--center">
                 <button type="submit" class="theme-button theme-button--solid">
-                  保存短链
+                  创建短链
                 </button>
               </div>
             </form>
@@ -188,12 +180,9 @@
                   />
                 </div>
               </div>
-              <div class="theme-form__footer">
-                <p class="theme-helper">
-                  表单调用 <code>POST /api/subdomains</code>，子域前缀会自动补全为 .{{ base_domain }} 的完整域名。
-                </p>
+              <div class="theme-form__footer theme-form__footer--center">
                 <button type="submit" class="theme-button theme-button--solid">
-                  保存子域
+                  创建子域
                 </button>
               </div>
             </form>
@@ -209,7 +198,7 @@
           <div class="theme-card__header">
             <h2 class="theme-card__title">子域列表</h2>
             <p class="theme-card__subtitle">
-              快速查看子域、跳转目标与状态码，可直接复制链接、删除或进入编辑。
+              快速查看子域、跳转目标与状态码，可直接复制、编辑或删除。
             </p>
           </div>
           <div

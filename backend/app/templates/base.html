@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{% block title %}yet.la 管理后台{% endblock %}</title>
+    <title>{% block title %}yet.la 短链子域管理后台{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -582,7 +582,7 @@
       }
 
       .theme-shell__banner {
-        padding: 2.25rem 2.5rem 0;
+        padding: 2.25rem 2.25rem 0;
       }
 
       .theme-shell__banner .theme-tagline {
@@ -593,7 +593,7 @@
         display: flex;
         flex-wrap: wrap;
         gap: 0.75rem;
-        padding: 2.5rem 2.5rem 0;
+        padding: 2.25rem 2.25rem 0;
       }
 
       .theme-tab {
@@ -639,7 +639,7 @@
       }
 
       .theme-shell__body {
-        padding: 2.5rem;
+        padding: 2.25rem;
       }
 
       .theme-stack {
@@ -816,6 +816,10 @@
         gap: 1rem;
         justify-content: space-between;
         align-items: center;
+      }
+
+      .theme-form__footer--center {
+        justify-content: center;
       }
 
       .theme-button {
@@ -1078,7 +1082,7 @@
         }
 
         .theme-shell__body {
-          padding: 1.85rem;
+          padding: 1.75rem;
         }
 
         .theme-card__header {
@@ -1090,7 +1094,7 @@
         }
 
         .theme-tabs {
-          padding: 1.85rem 1.85rem 0;
+          padding: 1.75rem 1.75rem 0;
         }
       }
 
@@ -1153,7 +1157,7 @@
         <div class="theme-hero__top">
           <div class="theme-hero__heading">
             <div class="theme-hero__meta">yet.la Platform</div>
-            <h1 class="theme-hero__title">yet.la 管理后台</h1>
+            <h1 class="theme-hero__title">短链子域管理后台</h1>
           </div>
           <div class="theme-hero__actions">
             <div class="theme-theme-switch" role="group" aria-label="主题切换">
@@ -1189,14 +1193,11 @@
             </a>
           </div>
         </div>
-        <p class="theme-hero__subtitle">
-          通过多套主题风格快速预览、创建和管理短链与子域跳转配置，保持团队品牌体验的统一与时尚。
-        </p>
       </div>
     </header>
     <main class="theme-main">
       {% block content %}{% endblock %}
     </main>
-    <footer class="theme-footer">© yet.la</footer>
+    <footer class="theme-footer">© 2025 yet.la</footer>
   </body>
 </html>
