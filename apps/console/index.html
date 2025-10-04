@@ -2,21 +2,59 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Console 子域示例</title>
     <style>
+      :root {
+        color-scheme: light;
+      }
+
       body {
         font-family: system-ui, sans-serif;
-        margin: 2rem auto;
-        max-width: 600px;
-        line-height: 1.6;
+        margin: 0;
+        min-height: 100vh;
+        background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+        color: #0f172a;
       }
+
+      .page {
+        margin: 0 auto;
+        max-width: 720px;
+        padding: clamp(2rem, 6vw, 4rem) clamp(1.5rem, 6vw, 2.75rem);
+        min-height: 100vh;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 1.5rem;
+      }
+
       h1 {
         color: #16a34a;
+        font-size: clamp(2rem, 5vw, 2.75rem);
+        margin: 0;
+      }
+
+      p {
+        margin: 0;
+        font-size: clamp(1rem, 2.8vw, 1.15rem);
+        line-height: 1.75;
+        color: rgba(15, 23, 42, 0.82);
+      }
+
+      @media (max-width: 600px) {
+        .page {
+          padding-top: clamp(2.5rem, 10vw, 3.5rem);
+          padding-bottom: clamp(2.5rem, 12vw, 4rem);
+          justify-content: flex-start;
+        }
       }
     </style>
   </head>
   <body>
-    <h1>console.yet.la</h1>
-    <p>这是后台控制台子域，通过 Nginx 的子域匹配规则路由到本目录。</p>
+    <main class="page">
+      <h1>console.yet.la</h1>
+      <p>这是后台控制台子域，通过 Nginx 的子域匹配规则路由到本目录。</p>
+    </main>
   </body>
 </html>

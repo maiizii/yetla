@@ -1329,33 +1329,187 @@
         width: 100%;
       }
 
-      @media (max-width: 768px) {
-        header.theme-hero {
-          padding: 2.5rem 1.25rem 2rem;
+      @media (max-width: 1024px) {
+        .theme-main {
+          padding: 0 1.75rem 2.25rem;
         }
 
-        .theme-hero__inner {
-          padding: 2.25rem 1.75rem;
+        .theme-layout {
+          padding-left: 1.75rem;
+          padding-right: 1.75rem;
+          gap: 2.5rem;
+        }
+
+        .theme-shell {
+          border-radius: var(--radius-md);
         }
 
         .theme-shell__body {
-          padding: 1.75rem;
-        }
-
-        .theme-card__header {
-          padding: 1.5rem 1.75rem 1.2rem;
-        }
-
-        .theme-card__body {
-          padding: 1.75rem;
+          padding: 2rem 1.75rem 2.5rem;
         }
 
         .theme-tabs {
-          padding: 1.75rem 1.75rem 0;
+          padding: 2rem 1.75rem 0;
+        }
+      }
+
+      @media (max-width: 768px) {
+        header.theme-hero {
+          padding: 2.25rem 1.25rem 1.75rem;
+        }
+
+        .theme-hero__inner {
+          padding: 2rem 1.5rem;
+          border-radius: var(--radius-md);
+        }
+
+        .theme-hero__top {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 1.25rem;
+        }
+
+        .theme-hero__actions {
+          width: 100%;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0.75rem;
+        }
+
+        .theme-theme-switch {
+          width: 100%;
+          justify-content: center;
+        }
+
+        .theme-hero__actions .theme-button {
+          width: 100%;
+          justify-content: center;
+        }
+
+        .theme-main {
+          padding: 0 1.5rem 2rem;
+        }
+
+        .theme-layout {
+          padding-left: 1.5rem;
+          padding-right: 1.5rem;
+          gap: 2rem;
+        }
+
+        .theme-shell {
+          border-radius: var(--radius-md);
+        }
+
+        .theme-shell__body {
+          padding: 1.5rem 1.5rem 2rem;
+        }
+
+        .theme-shell__body--center {
+          padding: 2rem 1.5rem 2.25rem;
+        }
+
+        .theme-card {
+          border-radius: var(--radius-md);
+        }
+
+        .theme-card__header {
+          padding: 1.35rem 1.5rem 1.1rem;
+        }
+
+        .theme-card__body {
+          padding: 1.5rem;
+        }
+
+        .theme-tabs {
+          padding: 1.5rem 1.5rem 0;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .theme-tab {
+          flex: 0 0 auto;
         }
       }
 
       @media (max-width: 640px) {
+        .theme-main {
+          padding: 0 1.1rem 1.75rem;
+        }
+
+        .theme-layout {
+          padding-left: 1.1rem;
+          padding-right: 1.1rem;
+          gap: 1.75rem;
+        }
+
+        header.theme-hero {
+          padding: 1.85rem 1rem 1.5rem;
+        }
+
+        .theme-hero__inner {
+          padding: 1.75rem 1.25rem;
+        }
+
+        .theme-hero__heading {
+          width: 100%;
+        }
+
+        .theme-hero__title {
+          font-size: clamp(1.75rem, 6vw + 0.5rem, 2.25rem);
+        }
+
+        .theme-hero__subtitle {
+          font-size: 0.95rem;
+        }
+
+        .theme-hero__actions {
+          gap: 0.6rem;
+        }
+
+        .theme-tabs {
+          padding: 1.25rem 1.25rem 0;
+          gap: 0.6rem;
+        }
+
+        .theme-tab {
+          padding: 0.55rem 1.1rem;
+          font-size: 0.9rem;
+        }
+
+        .theme-shell__body {
+          padding: 1.35rem 1.25rem 1.85rem;
+        }
+
+        .theme-shell__body--center {
+          padding: 1.75rem 1.25rem 2rem;
+        }
+
+        .theme-card__header {
+          padding: 1.2rem 1.25rem 1rem;
+        }
+
+        .theme-card__body {
+          padding: 1.25rem;
+        }
+
+        .theme-card__subtitle {
+          font-size: 0.9rem;
+        }
+
+        .theme-table thead th {
+          padding: 0.75rem 1rem;
+          font-size: 0.78rem;
+        }
+
+        .theme-table tbody td {
+          padding: 0.85rem 1rem;
+        }
+
+        .theme-login-feedback {
+          max-width: none;
+        }
+
         .theme-form__footer {
           flex-direction: column;
           align-items: stretch;
@@ -1368,6 +1522,15 @@
 
         .theme-button {
           width: 100%;
+        }
+
+        .theme-form--login .theme-field,
+        .theme-form--login .theme-form__footer {
+          max-width: none;
+        }
+
+        .theme-tabs::-webkit-scrollbar {
+          display: none;
         }
       }
 
