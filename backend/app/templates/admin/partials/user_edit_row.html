@@ -1,0 +1,83 @@
+<tr id="user-row-{{ item.id }}" class="theme-table__row theme-table__row--editing">
+  <td colspan="5" class="theme-table__cell">
+    <form
+      class="theme-form"
+      hx-put="/api/users/{{ item.id }}"
+      hx-target="#user-feedback"
+      hx-swap="innerHTML"
+      data-success-event="refresh-users"
+    >
+      <div class="theme-form__grid theme-form__grid--two">
+        <div class="theme-field">
+          <label for="edit-username-{{ item.id }}" class="theme-label">用户名</label>
+          <input
+            id="edit-username-{{ item.id }}"
+            name="username"
+            type="text"
+            required
+            value="{{ item.username }}"
+            class="theme-input"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+        <div class="theme-field">
+          <label for="edit-email-{{ item.id }}" class="theme-label">邮箱</label>
+          <input
+            id="edit-email-{{ item.id }}"
+            name="email"
+            type="email"
+            required
+            value="{{ item.email }}"
+            class="theme-input"
+          />
+        </div>
+        <div class="theme-field">
+          <label for="edit-password-{{ item.id }}" class="theme-label">新密码</label>
+          <input
+            id="edit-password-{{ item.id }}"
+            name="password"
+            type="password"
+            minlength="6"
+            class="theme-input"
+            placeholder="留空则不修改"
+          />
+        </div>
+        <div class="theme-field">
+          <label for="edit-password-confirm-{{ item.id }}" class="theme-label">确认密码</label>
+          <input
+            id="edit-password-confirm-{{ item.id }}"
+            name="password_confirm"
+            type="password"
+            minlength="6"
+            class="theme-input"
+            placeholder="再次输入新密码"
+          />
+        </div>
+        <div class="theme-field theme-form__span-full">
+          <label class="theme-checkbox">
+            <input type="checkbox" name="is_admin" value="1" {% if item.is_admin %}checked{% endif %} />
+            <span>管理员权限</span>
+          </label>
+        </div>
+      </div>
+      <div class="theme-form__footer">
+        <p class="theme-helper">保存后用户信息会立即更新。</p>
+        <div class="theme-form__actions">
+          <button
+            type="button"
+            class="theme-button theme-button--ghost theme-button--sm"
+            hx-get="/admin/users/{{ item.id }}/row"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+          >
+            取消
+          </button>
+          <button type="submit" class="theme-button theme-button--solid theme-button--sm">
+            保存
+          </button>
+        </div>
+      </div>
+    </form>
+  </td>
+</tr>

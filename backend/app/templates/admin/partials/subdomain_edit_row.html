@@ -1,5 +1,5 @@
 <tr id="subdomain-row-{{ item.id }}" class="theme-table__row theme-table__row--editing">
-  <td colspan="6" class="theme-table__cell">
+  <td colspan="{{ 6 + (1 if show_user_column else 0) }}" class="theme-table__cell">
     <form
       class="theme-form"
       hx-put="/api/subdomains/{{ item.id }}"

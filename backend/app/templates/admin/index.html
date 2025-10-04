@@ -30,6 +30,24 @@
         {% include "admin/partials/subdomain_count.html" %}
         {% endwith %}
       </a>
+      {% if current_user and current_user.is_admin %}
+      <a
+        href="?tab=users"
+        class="theme-tab {% if active_tab == 'users' %}is-active{% endif %}"
+      >
+        <span class="theme-tab__dot"></span>
+        用户
+        <span
+          class="theme-tab__count"
+          id="user-count"
+          hx-get="/admin/users/count"
+          hx-trigger="load, refresh-users from:body"
+          hx-swap="outerHTML"
+        >
+          ({{ users|length }})
+        </span>
+      </a>
+      {% endif %}
     </nav>
     <div class="theme-shell__body">
       {% if active_tab == 'links' %}
@@ -116,7 +134,7 @@
           </div>
         </section>
       </div>
-      {% else %}
+      {% elif active_tab == 'subdomains' %}
       <div class="theme-stack">
         <section class="theme-card">
           <div class="theme-card__header">
@@ -208,6 +226,115 @@
             hx-swap="innerHTML"
           >
             {% include "admin/partials/subdomain_table.html" %}
+          </div>
+        </section>
+      </div>
+      {% else %}
+      <div class="theme-stack">
+        <section class="theme-card">
+          <div class="theme-card__header">
+            <h2 class="theme-card__title">创建用户</h2>
+            <p class="theme-card__subtitle">
+              管理员可在此创建新用户，设置邮箱与初始密码，可选择是否授予管理员权限。
+            </p>
+          </div>
+          <div class="theme-card__body">
+            <form
+              class="theme-form"
+              action="/api/users"
+              method="post"
+              hx-post="/api/users"
+              hx-trigger="submit"
+              hx-target="#user-feedback"
+              hx-swap="innerHTML"
+              data-reset-on-success="true"
+              data-success-event="refresh-users"
+            >
+              <div class="theme-form__grid theme-form__grid--two">
+                <div class="theme-field">
+                  <label for="user-username" class="theme-label">用户名 *</label>
+                  <input
+                    id="user-username"
+                    name="username"
+                    type="text"
+                    required
+                    class="theme-input"
+                    placeholder="如 alice"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                </div>
+                <div class="theme-field">
+                  <label for="user-email" class="theme-label">邮箱 *</label>
+                  <input
+                    id="user-email"
+                    name="email"
+                    type="email"
+                    required
+                    class="theme-input"
+                    placeholder="user@example.com"
+                  />
+                </div>
+                <div class="theme-field">
+                  <label for="user-password" class="theme-label">密码 *</label>
+                  <input
+                    id="user-password"
+                    name="password"
+                    type="password"
+                    minlength="6"
+                    required
+                    class="theme-input"
+                    placeholder="至少 6 位"
+                  />
+                </div>
+                <div class="theme-field">
+                  <label for="user-password-confirm" class="theme-label">确认密码 *</label>
+                  <input
+                    id="user-password-confirm"
+                    name="password_confirm"
+                    type="password"
+                    minlength="6"
+                    required
+                    class="theme-input"
+                    placeholder="再次输入密码"
+                  />
+                </div>
+                <div class="theme-field theme-form__span-full">
+                  <label class="theme-checkbox">
+                    <input type="checkbox" name="is_admin" value="1" />
+                    <span>授予管理员权限</span>
+                  </label>
+                </div>
+              </div>
+              <div class="theme-form__footer theme-form__footer--center">
+                <button type="submit" class="theme-button theme-button--solid">
+                  创建用户
+                </button>
+              </div>
+            </form>
+          </div>
+          <div
+            id="user-feedback"
+            class="theme-feedback"
+            role="status"
+            aria-live="polite"
+          ></div>
+        </section>
+        <section class="theme-card">
+          <div class="theme-card__header">
+            <h2 class="theme-card__title">用户列表</h2>
+            <p class="theme-card__subtitle">
+              查看平台用户及权限，支持编辑资料或删除用户。
+            </p>
+          </div>
+          <div
+            id="users-table"
+            class="theme-card__body theme-card__body--table"
+            hx-get="/admin/users/table"
+            hx-trigger="load, refresh-users from:body"
+            hx-swap="innerHTML"
+          >
+            {% include "admin/partials/user_table.html" %}
           </div>
         </section>
       </div>

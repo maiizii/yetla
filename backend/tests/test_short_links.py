@@ -121,7 +121,81 @@ def test_admin_short_link_partials(client: "SimpleClient") -> None:
     table = client.get("/admin/links/table", auth=ADMIN_AUTH)
     assert table.status_code == 200
     assert "<th scope=\"col\">短链</th>" in table.text
+    assert "<th scope=\"col\">用户</th>" in table.text
 
     count = client.get("/admin/links/count", auth=ADMIN_AUTH)
     assert count.status_code == 200
     assert "short-link-count" in count.text
+
+
+def test_short_links_are_scoped_by_user(client: "SimpleClient") -> None:
+    client.post(
+        "/api/links",
+        json={"target_url": "https://example.com/admin", "code": "admin-link"},
+        auth=ADMIN_AUTH,
+    )
+
+    client.post(
+        "/api/users",
+        json={
+            "username": "alice",
+            "email": "alice@example.com",
+            "password": "alicepass",
+            "is_admin": False,
+        },
+        auth=ADMIN_AUTH,
+    )
+
+    normal_auth = ("alice", "alicepass")
+    client.post(
+        "/api/links",
+        json={"target_url": "https://example.com/alice", "code": "alice"},
+        auth=normal_auth,
+    )
+
+    normal_listing = client.get("/api/links", auth=normal_auth)
+    assert normal_listing.status_code == 200
+    normal_records = normal_listing.json()
+    assert len(normal_records) == 1
+    assert normal_records[0]["code"] == "alice"
+
+    admin_listing = client.get("/api/links", auth=ADMIN_AUTH)
+    assert admin_listing.status_code == 200
+    admin_codes = {record["code"] for record in admin_listing.json()}
+    assert admin_codes == {"admin-link", "alice"}
+
+
+def test_non_admin_cannot_modify_other_users_links(client: "SimpleClient") -> None:
+    admin_link = client.post(
+        "/api/links",
+        json={"target_url": "https://example.com/secret", "code": "secret"},
+        auth=ADMIN_AUTH,
+    ).json()
+
+    client.post(
+        "/api/users",
+        json={
+            "username": "bob",
+            "email": "bob@example.com",
+            "password": "bobpass",
+            "is_admin": False,
+        },
+        auth=ADMIN_AUTH,
+    )
+
+    normal_auth = ("bob", "bobpass")
+
+    forbidden_delete = client.delete(
+        f"/api/links/{admin_link['id']}",
+        auth=normal_auth,
+    )
+    assert forbidden_delete.status_code == 403
+    assert forbidden_delete.json()["detail"] == "无权操作该短链"
+
+    forbidden_update = client.put(
+        f"/api/links/{admin_link['id']}",
+        json={"code": "changed", "target_url": "https://example.com/new"},
+        auth=normal_auth,
+    )
+    assert forbidden_update.status_code == 403
+    assert forbidden_update.json()["detail"] == "无权操作该短链"

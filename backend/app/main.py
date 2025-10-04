@@ -12,12 +12,26 @@ from urllib.parse import parse_qsl
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
-from .deps import get_db, require_admin_auth
-from .models import Base, ShortLink, SubdomainRedirect, engine, ensure_subdomain_hits_column
+from .deps import (
+    establish_session,
+    get_db,
+    require_admin_user,
+    require_authenticated_user,
+    validate_credentials,
+)
+from .models import (
+    Base,
+    ShortLink,
+    SubdomainRedirect,
+    User,
+    ensure_subdomain_hits_column,
+    ensure_user_association_columns,
+    engine,
+)
 from .schemas import (
     ShortLink as ShortLinkSchema,
     ShortLinkCreate,
@@ -25,8 +39,15 @@ from .schemas import (
     SubdomainRedirect as SubdomainRedirectSchema,
     SubdomainRedirectCreate,
     SubdomainRedirectUpdate,
+    User as UserSchema,
+    UserCreate,
+    UserUpdate,
+    PasswordChange,
 )
 from pydantic import ValidationError
+
+from .user_service import ensure_default_admin
+from .security import hash_password, verify_password
 
 SHORT_CODE_LEN = int(os.getenv("SHORT_CODE_LEN", "6"))
 MAX_CODE_ATTEMPTS = 10
@@ -64,6 +85,8 @@ def ensure_tables() -> None:
     try:
         Base.metadata.create_all(bind=engine)
         ensure_subdomain_hits_column()
+        ensure_user_association_columns()
+        ensure_default_admin()
     except SQLAlchemyError as exc:  # pragma: no cover - 依赖数据库环境
         raise RuntimeError("failed to initialize database schema") from exc
 
@@ -164,6 +187,20 @@ async def _read_form_data(request: Request, content_type: str) -> dict[str, Any]
     return {key: value for key, value in form.multi_items()}
 
 
+def _ensure_short_link_permission(short_link: ShortLink, user: User) -> None:
+    if user.is_admin:
+        return
+    if short_link.user_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="无权操作该短链")
+
+
+def _ensure_subdomain_permission(redirect: SubdomainRedirect, user: User) -> None:
+    if user.is_admin:
+        return
+    if redirect.user_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="无权操作该子域")
+
+
 async def _parse_short_link_payload(request: Request) -> ShortLinkCreate:
     """解析短链请求载荷，兼容 JSON 与表单提交。"""
 
@@ -230,6 +267,76 @@ async def _parse_subdomain_update_payload(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
 
 
+def _parse_boolean(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "on", "yes"}
+
+
+async def _parse_user_create_payload(request: Request) -> UserCreate:
+    content_type = request.headers.get("content-type", "").lower()
+    data: dict[str, Any]
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        data = await _read_form_data(request, content_type)
+
+    if "password_confirm" in data:
+        if data.get("password") != data.get("password_confirm"):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=[{"loc": ("body", "password_confirm"), "msg": "两次输入的密码不一致"}],
+            )
+        data.pop("password_confirm", None)
+    if "is_admin" in data and not isinstance(data["is_admin"], bool):
+        data["is_admin"] = _parse_boolean(str(data["is_admin"]))
+
+    try:
+        return UserCreate.model_validate(data)
+    except ValidationError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+
+async def _parse_user_update_payload(request: Request) -> UserUpdate:
+    content_type = request.headers.get("content-type", "").lower()
+    data: dict[str, Any]
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        data = await _read_form_data(request, content_type)
+
+    if "password_confirm" in data:
+        if data.get("password") != data.get("password_confirm"):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=[{"loc": ("body", "password_confirm"), "msg": "两次输入的密码不一致"}],
+            )
+        data.pop("password_confirm", None)
+    if "password" in data and (data["password"] or "").strip() == "":
+        data["password"] = None
+    if "is_admin" in data and not isinstance(data["is_admin"], bool):
+        data["is_admin"] = _parse_boolean(str(data["is_admin"]))
+
+    try:
+        return UserUpdate.model_validate(data)
+    except ValidationError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+
+async def _parse_password_change_payload(request: Request) -> PasswordChange:
+    content_type = request.headers.get("content-type", "").lower()
+    data: dict[str, Any]
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        data = await _read_form_data(request, content_type)
+
+    try:
+        return PasswordChange.model_validate(data)
+    except ValidationError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+
 def _format_validation_errors(detail: Any) -> str:
     """将 Pydantic 错误信息转换为可读字符串。"""
 
@@ -286,15 +393,19 @@ def list_routes(db: Session = Depends(get_db)) -> list[SubdomainRedirect]:
     return list(redirects)
 
 
-@app.get(
-    "/api/links",
-    response_model=list[ShortLinkSchema],
-    dependencies=[Depends(require_admin_auth)],
-)
-def list_short_links(db: Session = Depends(get_db)) -> list[ShortLink]:
+@app.get("/api/links", response_model=list[ShortLinkSchema])
+def list_short_links(
+    current_user: User = Depends(require_authenticated_user),
+    db: Session = Depends(get_db),
+) -> list[ShortLink]:
     """列出所有短链接。"""
 
-    links = db.scalars(select(ShortLink).order_by(ShortLink.created_at.desc())).all()
+    query = select(ShortLink).options(selectinload(ShortLink.owner)).order_by(
+        ShortLink.created_at.desc()
+    )
+    if not current_user.is_admin:
+        query = query.where(ShortLink.user_id == current_user.id)
+    links = db.scalars(query).all()
     return list(links)
 
 
@@ -302,12 +413,12 @@ def list_short_links(db: Session = Depends(get_db)) -> list[ShortLink]:
     "/api/links",
     response_model=ShortLinkSchema,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_admin_auth)],
 )
 async def create_short_link(
     request: Request,
     response: Response,
     payload: ShortLinkCreate = Depends(_parse_short_link_payload),
+    current_user: User = Depends(require_authenticated_user),
     db: Session = Depends(get_db),
 ) -> ShortLink | HTMLResponse:
     """创建短链接，code 可空自动生成。"""
@@ -320,7 +431,9 @@ async def create_short_link(
     else:
         code = _generate_unique_code(db, SHORT_CODE_LEN)
 
-    short_link = ShortLink(code=code, target_url=payload.target_url)
+    short_link = ShortLink(
+        code=code, target_url=payload.target_url, user_id=current_user.id
+    )
     db.add(short_link)
     _commit_session(db, conflict_detail="短链接编码已存在")
     db.refresh(short_link)
@@ -341,14 +454,12 @@ async def create_short_link(
     return short_link
 
 
-@app.delete(
-    "/api/links/{link_id}",
-    dependencies=[Depends(require_admin_auth)],
-)
+@app.delete("/api/links/{link_id}")
 def delete_short_link(
     link_id: int,
     request: Request,
     response: Response,
+    current_user: User = Depends(require_authenticated_user),
     db: Session = Depends(get_db),
 ) -> Response:
     """删除指定短链接。"""
@@ -356,6 +467,7 @@ def delete_short_link(
     short_link = db.get(ShortLink, link_id)
     if short_link is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
+    _ensure_short_link_permission(short_link, current_user)
     db.delete(short_link)
     _commit_session(db)
     hx_request = request.headers.get("hx-request") == "true"
@@ -374,16 +486,13 @@ def delete_short_link(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.put(
-    "/api/links/{link_id}",
-    response_model=ShortLinkSchema,
-    dependencies=[Depends(require_admin_auth)],
-)
+@app.put("/api/links/{link_id}", response_model=ShortLinkSchema)
 async def update_short_link(
     link_id: int,
     request: Request,
     response: Response,
     payload: ShortLinkUpdate = Depends(_parse_short_link_update_payload),
+    current_user: User = Depends(require_authenticated_user),
     db: Session = Depends(get_db),
 ) -> ShortLink | HTMLResponse:
     """更新指定短链接的编码或目标地址。"""
@@ -391,6 +500,7 @@ async def update_short_link(
     short_link = db.get(ShortLink, link_id)
     if short_link is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
+    _ensure_short_link_permission(short_link, current_user)
 
     if payload.code != short_link.code:
         exists = db.scalar(select(ShortLink).where(ShortLink.code == payload.code))
@@ -399,6 +509,8 @@ async def update_short_link(
 
     short_link.code = payload.code
     short_link.target_url = payload.target_url
+    if short_link.user_id is None:
+        short_link.user_id = current_user.id
     db.add(short_link)
     _commit_session(db, conflict_detail="短链接编码已存在")
     db.refresh(short_link)
@@ -424,17 +536,19 @@ async def update_short_link(
     return short_link
 
 
-@app.get(
-    "/api/subdomains",
-    response_model=list[SubdomainRedirectSchema],
-    dependencies=[Depends(require_admin_auth)],
-)
-def list_subdomains(db: Session = Depends(get_db)) -> list[SubdomainRedirect]:
+@app.get("/api/subdomains", response_model=list[SubdomainRedirectSchema])
+def list_subdomains(
+    current_user: User = Depends(require_authenticated_user),
+    db: Session = Depends(get_db),
+) -> list[SubdomainRedirect]:
     """列出所有子域跳转规则。"""
 
-    redirects = db.scalars(
-        select(SubdomainRedirect).order_by(SubdomainRedirect.created_at.desc())
-    ).all()
+    query = select(SubdomainRedirect).options(selectinload(SubdomainRedirect.owner)).order_by(
+        SubdomainRedirect.created_at.desc()
+    )
+    if not current_user.is_admin:
+        query = query.where(SubdomainRedirect.user_id == current_user.id)
+    redirects = db.scalars(query).all()
     return list(redirects)
 
 
@@ -442,12 +556,12 @@ def list_subdomains(db: Session = Depends(get_db)) -> list[SubdomainRedirect]:
     "/api/subdomains",
     response_model=SubdomainRedirectSchema,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_admin_auth)],
 )
 async def create_subdomain(
     request: Request,
     response: Response,
     payload: SubdomainRedirectCreate = Depends(_parse_subdomain_payload),
+    current_user: User = Depends(require_authenticated_user),
     db: Session = Depends(get_db),
 ) -> SubdomainRedirect | HTMLResponse:
     """创建子域跳转规则，Host 为完整域名。"""
@@ -457,7 +571,12 @@ async def create_subdomain(
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="子域跳转已存在")
 
-    redirect = SubdomainRedirect(host=host, target_url=payload.target_url, code=payload.code)
+    redirect = SubdomainRedirect(
+        host=host,
+        target_url=payload.target_url,
+        code=payload.code,
+        user_id=current_user.id,
+    )
     db.add(redirect)
     _commit_session(db, conflict_detail="子域跳转已存在")
     db.refresh(redirect)
@@ -479,14 +598,209 @@ async def create_subdomain(
     return redirect
 
 
-@app.delete(
-    "/api/subdomains/{redirect_id}",
-    dependencies=[Depends(require_admin_auth)],
+@app.get(
+    "/api/users",
+    response_model=list[UserSchema],
 )
+def list_users(
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> list[User]:
+    """列出全部用户（管理员限定）。"""
+
+    users = db.scalars(select(User).order_by(User.created_at.desc())).all()
+    return list(users)
+
+
+@app.post(
+    "/api/users",
+    response_model=UserSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_user(
+    request: Request,
+    response: Response,
+    payload: UserCreate = Depends(_parse_user_create_payload),
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> User | HTMLResponse:
+    """创建新用户，供管理员使用。"""
+
+    existing = db.scalar(select(User).where(User.username == payload.username))
+    if existing is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="用户名已存在")
+
+    user = User(
+        username=payload.username,
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        is_admin=payload.is_admin,
+    )
+    db.add(user)
+    _commit_session(db, conflict_detail="用户名已存在")
+    db.refresh(user)
+
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = (
+            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
+            "用户创建成功"
+            "</div>"
+        )
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_201_CREATED,
+            headers={"HX-Trigger": "refresh-users"},
+        )
+
+    response.headers["HX-Trigger"] = "refresh-users"
+    return user
+
+
+@app.put(
+    "/api/users/{user_id}",
+    response_model=UserSchema,
+)
+async def update_user(
+    user_id: int,
+    request: Request,
+    response: Response,
+    payload: UserUpdate = Depends(_parse_user_update_payload),
+    admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> User | HTMLResponse:
+    """更新用户信息，管理员可用。"""
+
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="用户不存在")
+
+    if user.id == admin.id and not payload.is_admin:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="无法取消自身管理员权限")
+
+    if payload.username != user.username:
+        exists = db.scalar(select(User).where(User.username == payload.username))
+        if exists is not None and exists.id != user.id:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="用户名已存在")
+
+    user.username = payload.username
+    user.email = payload.email
+    user.is_admin = payload.is_admin
+    if payload.password:
+        user.password_hash = hash_password(payload.password)
+    db.add(user)
+    _commit_session(db, conflict_detail="用户名已存在")
+    db.refresh(user)
+
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = (
+            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
+            "用户信息已更新"
+            "</div>"
+        )
+        row_html = admin_templates.get_template("admin/partials/user_row.html").render(
+            {"request": request, "item": user, "oob": True}
+        )
+        return HTMLResponse(
+            f"{message}{row_html}",
+            status_code=status.HTTP_200_OK,
+            headers={"HX-Trigger": "refresh-users"},
+        )
+
+    response.headers["HX-Trigger"] = "refresh-users"
+    return user
+
+
+@app.delete("/api/users/{user_id}")
+def delete_user(
+    user_id: int,
+    request: Request,
+    response: Response,
+    admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """删除指定用户，管理员权限。"""
+
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="用户不存在")
+    if user.id == admin.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="无法删除当前登录用户")
+
+    if user.is_admin:
+        remaining_admins = db.scalar(
+            select(func.count())
+            .select_from(User)
+            .where(User.is_admin.is_(True), User.id != user.id)
+        )
+        if not remaining_admins:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="至少保留一位管理员")
+
+    db.delete(user)
+    _commit_session(db)
+
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = (
+            "<div class=\"rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700\">"
+            "用户已删除"
+            "</div>"
+        )
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_200_OK,
+            headers={"HX-Trigger": "refresh-users"},
+        )
+
+    response.headers["HX-Trigger"] = "refresh-users"
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post("/api/users/me/password")
+async def change_own_password(
+    request: Request,
+    response: Response,
+    payload: PasswordChange = Depends(_parse_password_change_payload),
+    current_user: User = Depends(require_authenticated_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """允许当前用户修改密码。"""
+
+    user = db.get(User, current_user.id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="用户不存在")
+
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="原密码不正确")
+
+    user.password_hash = hash_password(payload.new_password)
+    db.add(user)
+    _commit_session(db)
+
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = (
+            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
+            "密码修改成功"
+            "</div>"
+        )
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_200_OK,
+            headers={"HX-Trigger": "password-updated"},
+        )
+
+    response.headers["HX-Trigger"] = "password-updated"
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.delete("/api/subdomains/{redirect_id}")
 def delete_subdomain(
     redirect_id: int,
     request: Request,
     response: Response,
+    current_user: User = Depends(require_authenticated_user),
     db: Session = Depends(get_db),
 ) -> Response:
     """删除指定子域跳转。"""
@@ -494,6 +808,7 @@ def delete_subdomain(
     redirect = db.get(SubdomainRedirect, redirect_id)
     if redirect is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
+    _ensure_subdomain_permission(redirect, current_user)
     db.delete(redirect)
     _commit_session(db)
     hx_request = request.headers.get("hx-request") == "true"
@@ -516,13 +831,13 @@ def delete_subdomain(
 @app.put(
     "/api/subdomains/{redirect_id}",
     response_model=SubdomainRedirectSchema,
-    dependencies=[Depends(require_admin_auth)],
 )
 async def update_subdomain(
     redirect_id: int,
     request: Request,
     response: Response,
     payload: SubdomainRedirectUpdate = Depends(_parse_subdomain_update_payload),
+    current_user: User = Depends(require_authenticated_user),
     db: Session = Depends(get_db),
 ) -> SubdomainRedirect | HTMLResponse:
     """更新子域跳转规则。"""
@@ -530,6 +845,7 @@ async def update_subdomain(
     redirect = db.get(SubdomainRedirect, redirect_id)
     if redirect is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
+    _ensure_subdomain_permission(redirect, current_user)
 
     normalized_host = payload.host
     if normalized_host != redirect.host:
@@ -542,6 +858,8 @@ async def update_subdomain(
     redirect.host = normalized_host
     redirect.target_url = payload.target_url
     redirect.code = payload.code
+    if redirect.user_id is None:
+        redirect.user_id = current_user.id
     db.add(redirect)
     _commit_session(db, conflict_detail="子域跳转已存在")
     db.refresh(redirect)

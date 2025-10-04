@@ -30,6 +30,7 @@ def test_login_flow_success(client: "SimpleClient") -> None:
     )
     assert response.status_code == 200
     assert "创建短链" in response.text
+    assert "修改密码" in response.text
 
     dashboard = client.get("/admin", follow_redirects=False)
     assert dashboard.status_code == 200
@@ -70,3 +71,42 @@ def test_logout_clears_session(client: "SimpleClient") -> None:
     response = client.get("/admin", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"].startswith("/admin/login")
+
+
+def test_change_password_flow(client: "SimpleClient") -> None:
+    client.post(
+        "/admin/login",
+        data={"username": "admin", "password": "admin"},
+    )
+
+    page = client.get("/admin/password")
+    assert page.status_code == 200
+    assert "修改密码" in page.text
+
+    response = client.post(
+        "/api/users/me/password",
+        data={
+            "current_password": "admin",
+            "new_password": "changed123",
+            "confirm_password": "changed123",
+        },
+        headers={"hx-request": "true"},
+    )
+    assert response.status_code == 200
+    assert "密码修改成功" in response.text
+
+    client.get("/admin/logout")
+
+    bad_login = client.post(
+        "/admin/login",
+        data={"username": "admin", "password": "admin"},
+        follow_redirects=False,
+    )
+    assert bad_login.status_code == 400
+    assert "密码错误" in bad_login.text
+
+    good_login = client.post(
+        "/admin/login",
+        data={"username": "admin", "password": "changed123"},
+    )
+    assert good_login.status_code == 200

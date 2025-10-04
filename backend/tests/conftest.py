@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 TEST_DB_PATH = Path(__file__).resolve().parent / "test.db"
 if TEST_DB_PATH.exists():
@@ -23,10 +23,16 @@ from backend.app.models import (  # noqa: E402  pylint: disable=wrong-import-pos
     SessionLocal,
     ShortLink,
     SubdomainRedirect,
+    User,
     engine,
 )
+from backend.app.security import hash_password  # noqa: E402  pylint: disable=wrong-import-position
 
 REDIRECT_STATUSES = {301, 302, 303, 307, 308}
+
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin"
+ADMIN_EMAIL = "admin@example.com"
 
 
 @dataclass
@@ -279,6 +285,16 @@ class SimpleClient:
 def _prepare_database() -> None:
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    with SessionLocal() as session:
+        session.add(
+            User(
+                username=ADMIN_USERNAME,
+                email=ADMIN_EMAIL,
+                password_hash=hash_password(ADMIN_PASSWORD),
+                is_admin=True,
+            )
+        )
+        session.commit()
     yield
     Base.metadata.drop_all(bind=engine)
     if TEST_DB_PATH.exists():
@@ -290,11 +306,43 @@ def _clean_database() -> None:
     with SessionLocal() as session:
         session.execute(delete(ShortLink))
         session.execute(delete(SubdomainRedirect))
+        session.execute(delete(User).where(User.username != ADMIN_USERNAME))
+        admin = session.scalar(select(User).where(User.username == ADMIN_USERNAME))
+        if admin is not None:
+            admin.email = ADMIN_EMAIL
+            admin.is_admin = True
+            admin.password_hash = hash_password(ADMIN_PASSWORD)
+            session.add(admin)
+        else:
+            session.add(
+                User(
+                    username=ADMIN_USERNAME,
+                    email=ADMIN_EMAIL,
+                    password_hash=hash_password(ADMIN_PASSWORD),
+                    is_admin=True,
+                )
+            )
         session.commit()
     yield
     with SessionLocal() as session:
         session.execute(delete(ShortLink))
         session.execute(delete(SubdomainRedirect))
+        session.execute(delete(User).where(User.username != ADMIN_USERNAME))
+        admin = session.scalar(select(User).where(User.username == ADMIN_USERNAME))
+        if admin is not None:
+            admin.email = ADMIN_EMAIL
+            admin.is_admin = True
+            admin.password_hash = hash_password(ADMIN_PASSWORD)
+            session.add(admin)
+        else:
+            session.add(
+                User(
+                    username=ADMIN_USERNAME,
+                    email=ADMIN_EMAIL,
+                    password_hash=hash_password(ADMIN_PASSWORD),
+                    is_admin=True,
+                )
+            )
         session.commit()
 
 

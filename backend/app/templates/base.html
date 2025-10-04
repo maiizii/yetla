@@ -1315,6 +1315,12 @@
             </div>
             {% if show_logout_button %}
             <a
+              class="theme-button theme-button--ghost theme-button--password"
+              href="/admin/password"
+            >
+              修改密码
+            </a>
+            <a
               class="theme-button theme-button--ghost theme-button--logout"
               href="/admin/logout"
               onclick="return confirm('确认退出登录？')"
