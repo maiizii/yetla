@@ -9,29 +9,45 @@
     >
       <div class="theme-form__grid theme-form__grid--three">
         <div class="theme-field">
-          <label for="host-{{ item.id }}" class="theme-label">Host</label>
-          <input
-            id="host-{{ item.id }}"
-            name="host"
-            type="text"
-            required
-            value="{{ item.host }}"
-            class="theme-input"
-          />
+          <label for="host-{{ item.id }}" class="theme-label">子域</label>
+          {% set domain_suffix = '' %}
+          {% set suffix = '' %}
+          {% if base_domain %}
+          {% set suffix = '.' ~ base_domain %}
+          {% if item.host.endswith(suffix) %}
+          {% set domain_suffix = base_domain %}
+          {% endif %}
+          {% endif %}
+          {% set host_ns = namespace(value=item.host) %}
+          {% if domain_suffix %}
+          {% set host_ns.value = item.host[: item.host|length - ('.' ~ domain_suffix)|length] %}
+          {% endif %}
+          <div
+            class="theme-input-affix"
+            data-domain-input
+            data-domain-suffix="{{ domain_suffix }}"
+          >
+            <input
+              id="host-{{ item.id }}"
+              type="text"
+              required
+              value="{{ host_ns.value }}"
+              class="theme-input-affix__input"
+              autocomplete="off"
+              spellcheck="false"
+              data-domain-input-field
+            />
+            <span class="theme-input-affix__addon theme-input-affix__addon--suffix">.{{ base_domain }}</span>
+            <input type="hidden" name="host" value="{{ item.host }}" data-domain-input-hidden />
+          </div>
         </div>
         <div class="theme-field">
           <label for="code-{{ item.id }}" class="theme-label">状态码</label>
-          <input
-            id="code-{{ item.id }}"
-            name="code"
-            type="number"
-            min="301"
-            max="302"
-            step="1"
-            required
-            value="{{ item.code }}"
-            class="theme-input"
-          />
+          <select id="code-{{ item.id }}" name="code" class="theme-select" required>
+            {% for option in subdomain_code_options %}
+            <option value="{{ option }}" {% if option == item.code %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="theme-field theme-form__span-full">
           <label for="target-{{ item.id }}" class="theme-label">目标地址</label>

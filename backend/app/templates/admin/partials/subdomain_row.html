@@ -3,7 +3,23 @@
   class="theme-table__row"
   {% if oob %}hx-swap-oob="outerHTML"{% endif %}
 >
-  <td class="theme-table__cell theme-table__cell--mono">{{ item.host }}</td>
+  <td class="theme-table__cell">
+    <button
+      type="button"
+      class="theme-copy"
+      data-copy-value="https://{{ item.host }}"
+      aria-label="复制子域 https://{{ item.host }}"
+    >
+      <span class="theme-copy__text">https://{{ item.host }}</span>
+      <span class="theme-copy__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+          <path d="M5 15V5a2 2 0 0 1 2-2h10"></path>
+        </svg>
+      </span>
+      <span class="theme-copy__feedback" aria-hidden="true">已复制</span>
+    </button>
+  </td>
   <td class="theme-table__cell theme-table__cell--wrap theme-table__cell--muted">{{ item.target_url }}</td>
   <td class="theme-table__cell theme-table__cell--muted">{{ item.code }}</td>
   <td class="theme-table__cell theme-table__cell--muted">{{ item.hits }}</td>
@@ -27,7 +43,7 @@
         hx-delete="/api/subdomains/{{ item.id }}"
         hx-target="#subdomain-feedback"
         hx-swap="innerHTML"
-        hx-confirm="确认删除该子域跳转？"
+        hx-confirm="确认删除该子域？"
         data-success-event="refresh-subdomains"
       >
         删除
