@@ -71,11 +71,15 @@ def require_admin_auth(
     if session.get("is_authenticated"):
         return
 
-    if credentials is not None:
+    accept_header = (request.headers.get("accept") or "").lower()
+    accepts_html = "text/html" in accept_header
+
+    if credentials is not None and (
+        not request.url.path.startswith("/admin") or not accepts_html
+    ):
         require_basic_auth(credentials)
         return
 
-    accepts_html = "text/html" in (request.headers.get("accept") or "")
     if accepts_html or request.url.path.startswith("/admin"):
         target = request.url.path
         if request.url.query:

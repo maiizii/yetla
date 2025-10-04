@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}yet.la 短链子域管理后台{% endblock %}</title>
+    <link rel="icon" type="image/png" href="https://img.811777.xyz/i/2025/10/04/68e0a010486cf.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -341,10 +342,27 @@
         margin-bottom: 0.35rem;
       }
 
+      .theme-hero__brand {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.35rem 0.9rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.18);
+        backdrop-filter: blur(12px);
+        line-height: 0;
+      }
+
       .theme-hero__heading {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
+      }
+
+      .theme-hero__brand-logo {
+        display: block;
+        height: 44px;
+        width: auto;
       }
 
       .theme-hero__title {
@@ -584,6 +602,8 @@
         box-shadow: var(--shadow-soft);
         backdrop-filter: blur(16px);
         overflow: hidden;
+        width: min(100%, calc(var(--theme-container-max) + var(--theme-container-padding) * 2));
+        margin: 0 auto;
       }
 
       .theme-shell__banner {
@@ -627,8 +647,7 @@
 
       .theme-tab__count {
         display: inline-flex;
-        align-items: center;
-        align-self: center;
+        align-items: flex-end;
         line-height: 1.1;
         font-variant-numeric: tabular-nums;
         margin-left: 0.1rem;
@@ -696,6 +715,15 @@
         backdrop-filter: blur(12px);
       }
 
+      .theme-card__header--center {
+        text-align: center;
+      }
+
+      .theme-card__header--center .theme-card__subtitle {
+        margin-left: auto;
+        margin-right: auto;
+      }
+
       .theme-card__title {
         font-size: 1.2rem;
         font-weight: 600;
@@ -727,6 +755,35 @@
         display: flex;
         flex-direction: column;
         gap: 1.75rem;
+      }
+
+      .theme-form--login {
+        align-items: center;
+        text-align: center;
+      }
+
+      .theme-form--login .theme-field {
+        width: 100%;
+        max-width: 320px;
+        align-items: center;
+      }
+
+      .theme-form--login .theme-label {
+        width: 100%;
+        text-align: center;
+      }
+
+      .theme-form--login .theme-input {
+        max-width: 320px;
+        margin: 0 auto;
+      }
+
+      .theme-form--login .theme-form__footer {
+        width: 100%;
+      }
+
+      .theme-form--login .theme-button--block {
+        max-width: 320px;
       }
 
       .theme-form__grid {
@@ -931,6 +988,10 @@
         background: var(--theme-danger-bg);
         color: var(--theme-danger-text);
         font-size: 0.9rem;
+        text-align: center;
+        max-width: 320px;
+        margin-left: auto;
+        margin-right: auto;
       }
 
       .theme-table {
@@ -1198,7 +1259,14 @@
       <div class="theme-hero__inner">
         <div class="theme-hero__top">
           <div class="theme-hero__heading">
-            <div class="theme-hero__meta">yet.la Platform</div>
+            <div class="theme-hero__brand">
+              <img
+                src="https://img.811777.xyz/i/2025/10/04/68e0a00e3ab35.png"
+                alt="yet.la 平台标识"
+                class="theme-hero__brand-logo"
+              />
+              <span class="sr-only">yet.la Platform</span>
+            </div>
             <h1 class="theme-hero__title">yet.la 短链子域管理后台</h1>
           </div>
           <div class="theme-hero__actions">
