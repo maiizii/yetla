@@ -218,6 +218,38 @@
     dispatchSuccessEvent(formLike);
   }
 
+  async function refreshUsers() {
+    const countAnchor = document.getElementById("user-count");
+    if (countAnchor) {
+      try {
+        const { response, text } = await fetchFragment("/admin/users/count", {
+          method: "GET",
+          headers: buildHeaders(),
+        });
+        if (response.ok) {
+          swapContent(countAnchor, text, "outerHTML");
+        }
+      } catch (error) {
+        console.error("Failed to refresh user count", error);
+      }
+    }
+
+    const tableContainer = document.getElementById("users-table");
+    if (tableContainer) {
+      try {
+        const { response, text } = await fetchFragment("/admin/users/table", {
+          method: "GET",
+          headers: buildHeaders(),
+        });
+        if (response.ok) {
+          swapContent(tableContainer, text, "innerHTML");
+        }
+      } catch (error) {
+        console.error("Failed to refresh user table", error);
+      }
+    }
+  }
+
   async function refreshLinks() {
     const countAnchor = document.getElementById("short-link-count");
     if (countAnchor) {
@@ -704,12 +736,15 @@
       "htmx 未加载，使用回退逻辑处理短链子域管理后台交互。\n建议检查 CDN 是否可访问。"
     );
 
+    const refreshUsersHandler = () => refreshUsers();
     const refreshLinksHandler = () => refreshLinks();
     const refreshSubdomainsHandler = () => refreshSubdomains();
 
+    document.body.addEventListener("refresh-users", refreshUsersHandler);
     document.body.addEventListener("refresh-links", refreshLinksHandler);
     document.body.addEventListener("refresh-subdomains", refreshSubdomainsHandler);
 
+    refreshUsersHandler();
     refreshLinksHandler();
     refreshSubdomainsHandler();
 

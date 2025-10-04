@@ -813,6 +813,16 @@
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       }
 
+      .theme-form__grid--two-fixed {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      @media (max-width: 640px) {
+        .theme-form__grid--two-fixed {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
       .theme-form__grid--three {
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       }
