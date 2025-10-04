@@ -824,6 +824,17 @@
         }
       }
 
+      .theme-form__grid--user-identity {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+        align-items: end;
+      }
+
+      @media (max-width: 640px) {
+        .theme-form__grid--user-identity {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
       .theme-form__grid--three {
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       }
@@ -922,6 +933,17 @@
         color: var(--theme-text-primary);
         font-size: 0.95rem;
         transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+      }
+
+      .theme-input--compact {
+        width: 6.5rem;
+        min-width: 0;
+      }
+
+      @media (max-width: 640px) {
+        .theme-input--compact {
+          width: 100%;
+        }
       }
 
       .theme-input:focus,
