@@ -146,3 +146,87 @@ def test_host_redirect_not_found(client: "SimpleClient") -> None:
     response = client.get("/", headers={"host": "unknown.test"}, follow_redirects=False)
     assert response.status_code == 404
     assert response.text == "Not Found"
+
+
+def test_admin_subdomain_table_includes_user_column(client: "SimpleClient") -> None:
+    client.post(
+        "/api/subdomains",
+        json={"host": "table.test", "target_url": "https://example.com"},
+        auth=ADMIN_AUTH,
+    )
+
+    table = client.get("/admin/subdomains/table", auth=ADMIN_AUTH)
+    assert table.status_code == 200
+    assert "<th scope=\"col\">用户</th>" in table.text
+
+
+def test_subdomains_are_scoped_by_user(client: "SimpleClient") -> None:
+    client.post(
+        "/api/subdomains",
+        json={"host": "admin-only.test", "target_url": "https://admin.example.com"},
+        auth=ADMIN_AUTH,
+    )
+
+    client.post(
+        "/api/users",
+        json={
+            "username": "charlie",
+            "email": "charlie@example.com",
+            "password": "charliepw",
+            "is_admin": False,
+        },
+        auth=ADMIN_AUTH,
+    )
+
+    user_auth = ("charlie", "charliepw")
+    client.post(
+        "/api/subdomains",
+        json={"host": "user.test", "target_url": "https://user.example.com"},
+        auth=user_auth,
+    )
+
+    user_listing = client.get("/api/subdomains", auth=user_auth)
+    assert user_listing.status_code == 200
+    user_records = user_listing.json()
+    assert len(user_records) == 1
+    assert user_records[0]["host"] == "user.test"
+
+    admin_listing = client.get("/api/subdomains", auth=ADMIN_AUTH)
+    admin_hosts = {record["host"] for record in admin_listing.json()}
+    assert admin_hosts == {"admin-only.test", "user.test"}
+
+
+def test_non_admin_cannot_modify_other_subdomains(client: "SimpleClient") -> None:
+    admin_redirect = client.post(
+        "/api/subdomains",
+        json={"host": "lock.test", "target_url": "https://secure.example.com"},
+        auth=ADMIN_AUTH,
+    ).json()
+
+    client.post(
+        "/api/users",
+        json={
+            "username": "dave",
+            "email": "dave@example.com",
+            "password": "davepass",
+            "is_admin": False,
+        },
+        auth=ADMIN_AUTH,
+    )
+
+    user_auth = ("dave", "davepass")
+
+    forbidden_delete = client.delete(
+        f"/api/subdomains/{admin_redirect['id']}",
+        auth=user_auth,
+    )
+    assert forbidden_delete.status_code == 403
+    assert forbidden_delete.json()["detail"] == "无权操作该子域"
+
+    forbidden_update = client.put(
+        f"/api/subdomains/{admin_redirect['id']}",
+        json={"host": "lock.test", "target_url": "https://evil.example.com", "code": 302},
+        auth=user_auth,
+    )
+    assert forbidden_update.status_code == 403
+    assert forbidden_update.json()["detail"] == "无权操作该子域"

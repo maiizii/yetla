@@ -1,0 +1,9 @@
+<span
+  class="theme-tab__count"
+  id="user-count"
+  hx-get="/admin/users/count"
+  hx-trigger="load, refresh-users from:body"
+  hx-swap="outerHTML"
+>
+  ({{ count }})
+</span>

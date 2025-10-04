@@ -1,0 +1,20 @@
+{% if users %}
+<table class="theme-table">
+  <thead>
+    <tr>
+      <th scope="col">用户名</th>
+      <th scope="col">邮箱</th>
+      <th scope="col">权限</th>
+      <th scope="col">创建时间</th>
+      <th scope="col" class="theme-table__cell--right">操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in users %}
+    {% include "admin/partials/user_row.html" %}
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="theme-table__empty">暂无用户记录。</div>
+{% endif %}

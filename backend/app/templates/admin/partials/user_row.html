@@ -1,0 +1,44 @@
+<tr
+  id="user-row-{{ item.id }}"
+  class="theme-table__row"
+  {% if oob %}hx-swap-oob="outerHTML"{% endif %}
+>
+  <td class="theme-table__cell theme-table__cell--wrap">
+    {{ item.username }}
+  </td>
+  <td class="theme-table__cell theme-table__cell--muted">{{ item.email }}</td>
+  <td class="theme-table__cell">
+    {% if item.is_admin %}
+    <span class="theme-pill">管理员</span>
+    {% else %}
+    普通用户
+    {% endif %}
+  </td>
+  <td class="theme-table__cell theme-table__cell--muted">
+    {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
+  </td>
+  <td class="theme-table__cell theme-table__cell--right">
+    <div class="theme-table__actions">
+      <button
+        type="button"
+        class="theme-button theme-button--ghost theme-button--sm"
+        hx-get="/admin/users/{{ item.id }}/edit"
+        hx-target="closest tr"
+        hx-swap="outerHTML"
+      >
+        编辑
+      </button>
+      <button
+        type="button"
+        class="theme-button theme-button--danger theme-button--sm"
+        hx-delete="/api/users/{{ item.id }}"
+        hx-target="#user-feedback"
+        hx-swap="innerHTML"
+        hx-confirm="确认删除该用户？"
+        data-success-event="refresh-users"
+      >
+        删除
+      </button>
+    </div>
+  </td>
+</tr>

@@ -26,6 +26,9 @@
   <td class="theme-table__cell theme-table__cell--muted">
     {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
   </td>
+  {% if show_user_column %}
+  <td class="theme-table__cell theme-table__cell--muted">{{ item.owner_username or '—' }}</td>
+  {% endif %}
   <td class="theme-table__cell theme-table__cell--right">
     <div class="theme-table__actions">
       <button
