@@ -251,29 +251,42 @@
               data-success-event="refresh-users"
             >
               <div class="theme-form__grid theme-form__grid--two-fixed">
-                <div class="theme-field">
-                  <label for="user-username" class="theme-label">用户名 *</label>
-                  <input
-                    id="user-username"
-                    name="username"
-                    type="text"
-                    required
-                    class="theme-input"
-                    placeholder="如 alice"
-                    autocomplete="off"
-                    spellcheck="false"
-                  />
-                </div>
-                <div class="theme-field">
-                  <label for="user-email" class="theme-label">邮箱 *</label>
-                  <input
-                    id="user-email"
-                    name="email"
-                    type="email"
-                    required
-                    class="theme-input"
-                    placeholder="user@example.com"
-                  />
+                <div class="theme-form__grid theme-form__grid--user-identity theme-form__span-full">
+                  <div class="theme-field">
+                    <label for="user-username" class="theme-label">用户名 *</label>
+                    <input
+                      id="user-username"
+                      name="username"
+                      type="text"
+                      required
+                      class="theme-input"
+                      placeholder="如 alice"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                  </div>
+                  <div class="theme-field">
+                    <label for="user-email" class="theme-label">邮箱 *</label>
+                    <input
+                      id="user-email"
+                      name="email"
+                      type="email"
+                      required
+                      class="theme-input"
+                      placeholder="user@example.com"
+                    />
+                  </div>
+                  <div class="theme-field">
+                    <label for="create-role" class="theme-label">权限</label>
+                    <select
+                      id="create-role"
+                      name="is_admin"
+                      class="theme-input theme-input--compact"
+                    >
+                      <option value="0" selected>普通用户</option>
+                      <option value="1">管理员</option>
+                    </select>
+                  </div>
                 </div>
                 <div class="theme-field">
                   <label for="user-password" class="theme-label">密码 *</label>
@@ -298,17 +311,6 @@
                     class="theme-input"
                     placeholder="再次输入密码"
                   />
-                </div>
-                <div class="theme-field theme-form__span-full">
-                  <label for="create-role" class="theme-label">权限</label>
-                  <select
-                    id="create-role"
-                    name="is_admin"
-                    class="theme-input"
-                  >
-                    <option value="0" selected>普通用户</option>
-                    <option value="1">管理员</option>
-                  </select>
                 </div>
               </div>
               <div class="theme-form__footer theme-form__footer--center">
