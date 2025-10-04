@@ -368,7 +368,10 @@
       }
 
       .theme-layout {
-        width: min(100%, calc(var(--theme-container-max) + var(--theme-container-padding) * 2));
+        width: 100%;
+        max-width: calc(
+          var(--theme-container-max) + var(--theme-container-padding) * 4
+        );
         margin: 0 auto;
         display: flex;
         flex-direction: column;
