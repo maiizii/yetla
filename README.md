@@ -42,7 +42,7 @@
 - **认证后台 + API**：`backend/app/main.py` 提供 HTMX 管理界面及 REST API，所有写操作强制 HTTP Basic 认证。
 - **部署脚本**：`docker-compose*.yml` 与 `infra/nginx/docker-entrypoint.d/` 负责容器化部署与证书挂载自检。
 
-更多背景信息请参阅 [docs/NGINX_SUBDOMAIN_ROUTING.md](docs/NGINX_SUBDOMAIN_ROUTING.md)。
+更多背景信息请参阅 [docs/NGINX_SUBDOMAIN_ROUTING.md](docs/NGINX_SUBDOMAIN_ROUTING.md)。该文档结合最新的生产配置，说明了如何使用 Nginx 通过数据库驱动的规则完成泛域名跳转。
 
 ## 前置条件
 
@@ -110,6 +110,8 @@ make shell
 ```bash
 bash scripts/smoke.sh
 ```
+
+如果只需快速确认 HTTPS 入口的 301 跳转与子域生效情况，可执行 `scripts/proxy-smoke.sh`，该脚本会模拟 Cloudflare → 源站 的完整握手流程并验证 Basic Auth、防未授权访问等关键逻辑。
 
 ## HTTPS 入口与冒烟验证
 
@@ -261,11 +263,14 @@ server {
 | GET | `/routes` | 查询所有子域跳转规则 | 无 | 200 |
 | GET | `/api/links` | 列出短链接 | HTTP Basic | 200 |
 | POST | `/api/links` | 新增短链接（`code` 为空时自动生成） | HTTP Basic | 201 / 409 |
+| PUT | `/api/links/{id}` | 更新短链接（支持修改 code 与目标地址） | HTTP Basic | 200 / 404 / 409 |
 | DELETE | `/api/links/{id}` | 删除短链接 | HTTP Basic | 204 / 404 |
 | GET | `/api/subdomains` | 列出子域跳转 | HTTP Basic | 200 |
 | POST | `/api/subdomains` | 新增子域跳转（`host` 为完整域名） | HTTP Basic | 201 / 409 |
+| PUT | `/api/subdomains/{id}` | 更新子域跳转（含 Host/URL/状态码） | HTTP Basic | 200 / 404 / 409 |
 | DELETE | `/api/subdomains/{id}` | 删除子域跳转 | HTTP Basic | 204 / 404 |
 | GET | `/{code}` | 短链接跳转并累积访问量 | 无 | 302 / 404 |
+| ANY | `/{path}` | 根据 `Host` 匹配子域跳转，未命中则返回 404 文本 | 无 | 30x / 404 |
 
 写操作同时支持 JSON 与表单提交，示例如下：
 
@@ -307,14 +312,16 @@ curl -sk -u admin:changeme \
 | --- | --- |
 | `ADMIN_USER` | 管理后台与 API 的 Basic Auth 用户名。 |
 | `ADMIN_PASS` | 管理后台与 API 的 Basic Auth 密码。 |
-| `BASE_DOMAIN` | 系统管理的基础域名，例如 `yet.la`。 |
+| `BASE_DOMAIN` | 系统管理的基础域名，例如 `yet.la`。设置后仅允许该域名下的短链入口。 |
 | `SHORT_CODE_LEN` | 自动生成短链接编码的默认长度（默认 `6`）。 |
+| `DATABASE_URL` | SQLAlchemy 兼容的数据库连接串，默认为 `sqlite:////data/data.db`。可指向外部 PostgreSQL/MySQL。 |
+| `SESSION_SECRET` | 管理后台的服务器端会话密钥，默认回退为 `ADMIN_PASS`。生产环境务必覆盖。 |
 
 ## 数据存储
 
-- 后端使用 SQLite，数据库位于容器内 `/data/data.db`。
-- `docker-compose.yml` 将仓库根目录的 `./data` 挂载到容器 `/data`，FastAPI 在启动钩子中确保目录存在并创建表结构。
-- 建议定期备份 `data/data.db`，可参考 [docs/backup-example.sh](docs/backup-example.sh)。
+- 后端默认使用 SQLite，数据库位于容器内 `/data/data.db`；若设置 `DATABASE_URL`，会自动创建对应目录或连接外部数据库。
+- `docker-compose.yml` 将仓库根目录的 `./data` 挂载到容器 `/data`，FastAPI 在启动钩子中确保目录存在并创建表结构以及历史数据库的补丁字段（如 `hits` 统计列）。
+- 子域与短链都会累积访问次数，可在后台界面查看；建议定期备份 `data/data.db` 或目标数据库，可参考 [docs/backup-example.sh](docs/backup-example.sh)。
 
 ## 安全基线
 
