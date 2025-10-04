@@ -89,6 +89,45 @@ def admin_dashboard(
     return templates.TemplateResponse("admin/index.html", context)
 
 
+@router.get("/admin/logout", response_class=HTMLResponse)
+def admin_logout() -> HTMLResponse:
+    """Return a 401 response to clear cached HTTP Basic credentials."""
+
+    response = HTMLResponse(
+        """
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+          <head>
+            <meta charset="utf-8" />
+            <title>yet.la 登出</title>
+            <style>
+              body {
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                  "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+                margin: 4rem auto;
+                max-width: 560px;
+                line-height: 1.6;
+                color: #0f172a;
+                text-align: center;
+              }
+              a {
+                color: #2563eb;
+              }
+            </style>
+          </head>
+          <body>
+            <h1>已退出 yet.la 管理后台</h1>
+            <p>关闭此页面或<a href="/admin">重新登录</a>以继续管理。</p>
+          </body>
+        </html>
+        """,
+        status_code=status.HTTP_401_UNAUTHORIZED,
+    )
+    response.headers["WWW-Authenticate"] = "Basic realm=\"yet.la admin\""
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @router.get("/admin/links/count", response_class=HTMLResponse)
 def short_link_count(
     request: Request,

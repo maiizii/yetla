@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{% block title %}Yet.la 管理后台{% endblock %}</title>
+    <title>{% block title %}yet.la 管理后台{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -168,14 +168,14 @@
       }
 
       header.theme-hero {
-        padding: 3.5rem 1.5rem 2.5rem;
+        padding: 0.875rem 1.5rem 0.625rem;
       }
 
       .theme-hero__inner {
         position: relative;
         margin: 0 auto;
         max-width: 1120px;
-        padding: 2.75rem 3rem;
+        padding: 1.1rem 2.25rem;
         border-radius: var(--radius-lg);
         background: var(--theme-hero-bg);
         overflow: hidden;
@@ -188,9 +188,17 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 1.5rem;
+        gap: 1rem;
         flex-wrap: wrap;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
+      }
+
+      .theme-hero__actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
       }
 
       .theme-theme-switch {
@@ -203,6 +211,34 @@
         background: rgba(15, 23, 42, 0.2);
         backdrop-filter: blur(12px);
         flex-shrink: 0;
+      }
+
+      .theme-button--logout {
+        padding: 0.55rem 1.35rem;
+        color: rgba(248, 250, 252, 0.95);
+        background: rgba(15, 23, 42, 0.25);
+        border-color: rgba(255, 255, 255, 0.35);
+        box-shadow: none;
+      }
+
+      .theme-button--logout:hover,
+      .theme-button--logout:focus-visible {
+        background: rgba(15, 23, 42, 0.38);
+        border-color: transparent;
+        color: rgba(248, 250, 252, 1);
+      }
+
+      :root[data-theme="nebula"] .theme-button--logout {
+        background: rgba(56, 189, 248, 0.18);
+        border-color: rgba(56, 189, 248, 0.4);
+        color: #e0f2fe;
+      }
+
+      :root[data-theme="nebula"] .theme-button--logout:hover,
+      :root[data-theme="nebula"] .theme-button--logout:focus-visible {
+        background: rgba(56, 189, 248, 0.3);
+        color: #0f172a;
+        border-color: transparent;
       }
 
       .theme-toggle {
@@ -299,8 +335,8 @@
         backdrop-filter: blur(12px);
         font-size: 0.85rem;
         letter-spacing: 0.08em;
-        text-transform: uppercase;
-        margin-bottom: 0.75rem;
+        text-transform: none;
+        margin-bottom: 0.35rem;
       }
 
       .theme-hero__heading {
@@ -318,7 +354,7 @@
       }
 
       .theme-hero__subtitle {
-        margin-top: 1rem;
+        margin-top: 0.5rem;
         max-width: 620px;
         font-size: 1rem;
         line-height: 1.75;
@@ -326,7 +362,7 @@
       }
 
       .theme-main {
-        padding: 0 1.5rem 4rem;
+        padding: 0 1.5rem 2.5rem;
       }
 
       .theme-layout {
@@ -335,6 +371,13 @@
         display: flex;
         flex-direction: column;
         gap: 3rem;
+      }
+
+      .theme-footer {
+        padding: 1.5rem 1.5rem 2.5rem;
+        text-align: center;
+        color: var(--theme-muted);
+        font-size: 0.9rem;
       }
 
       .theme-gallery {
@@ -565,6 +608,7 @@
         background: var(--theme-tab-bg);
         border: 1px solid var(--theme-tab-border);
         transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, border 0.25s ease;
+        text-decoration: none;
       }
 
       .theme-tab__dot {
@@ -786,7 +830,9 @@
         border: 1px solid transparent;
         background: transparent;
         color: var(--theme-text-primary);
-        transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease,
+          color 0.2s ease, border-color 0.2s ease;
+        text-decoration: none;
       }
 
       .theme-button:hover,
@@ -1106,33 +1152,41 @@
       <div class="theme-hero__inner">
         <div class="theme-hero__top">
           <div class="theme-hero__heading">
-            <div class="theme-hero__meta">Yet.la Platform</div>
-            <h1 class="theme-hero__title">Yet.la 管理后台</h1>
+            <div class="theme-hero__meta">yet.la Platform</div>
+            <h1 class="theme-hero__title">yet.la 管理后台</h1>
           </div>
-          <div class="theme-theme-switch" role="group" aria-label="主题切换">
-            <button
-              type="button"
-              class="theme-toggle"
-              data-theme-toggle="aurora"
-              aria-pressed="false"
+          <div class="theme-hero__actions">
+            <div class="theme-theme-switch" role="group" aria-label="主题切换">
+              <button
+                type="button"
+                class="theme-toggle"
+                data-theme-toggle="aurora"
+                aria-pressed="false"
+              >
+                <span class="sr-only">切换到亮色主题</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="5"></circle>
+                  <path d="M12 1v2m0 18v2m11-11h-2M3 12H1m16.95-6.95-1.41 1.41M8.46 17.54l-1.41 1.41M17.54 17.54l-1.41-1.41M7.05 7.05 5.64 5.64"></path>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="theme-toggle"
+                data-theme-toggle="nebula"
+                aria-pressed="false"
+              >
+                <span class="sr-only">切换到暗色主题</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z"></path>
+                </svg>
+              </button>
+            </div>
+            <a
+              class="theme-button theme-button--ghost theme-button--logout"
+              href="/admin/logout"
             >
-              <span class="sr-only">切换到亮色主题</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="5"></circle>
-                <path d="M12 1v2m0 18v2m11-11h-2M3 12H1m16.95-6.95-1.41 1.41M8.46 17.54l-1.41 1.41M17.54 17.54l-1.41-1.41M7.05 7.05 5.64 5.64"></path>
-              </svg>
-            </button>
-            <button
-              type="button"
-              class="theme-toggle"
-              data-theme-toggle="nebula"
-              aria-pressed="false"
-            >
-              <span class="sr-only">切换到暗色主题</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z"></path>
-              </svg>
-            </button>
+              退出
+            </a>
           </div>
         </div>
         <p class="theme-hero__subtitle">
@@ -1143,5 +1197,6 @@
     <main class="theme-main">
       {% block content %}{% endblock %}
     </main>
+    <footer class="theme-footer">© yet.la</footer>
   </body>
 </html>
