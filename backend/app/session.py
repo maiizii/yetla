@@ -74,12 +74,9 @@ def set_session(response: Response, request: Request, data: dict[str, Any]) -> N
 
 def clear_session(response: Response, request: Request) -> None:
     request.state._yetla_session = {}
-    response.set_cookie(
+    response.delete_cookie(
         SESSION_COOKIE_NAME,
-        "",
         path="/",
-        max_age=0,
-        expires=0,
         httponly=True,
         samesite="lax",
     )

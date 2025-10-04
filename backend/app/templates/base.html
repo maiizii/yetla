@@ -627,8 +627,8 @@
 
       .theme-tab__count {
         display: inline-flex;
-        align-items: baseline;
-        align-self: baseline;
+        align-items: center;
+        align-self: center;
         line-height: 1.1;
         font-variant-numeric: tabular-nums;
         margin-left: 0.1rem;
@@ -682,28 +682,11 @@
         width: 100%;
       }
 
-      .theme-card--auth .theme-card__body {
-        align-items: center;
-      }
-
-      .theme-card--auth .theme-field,
-      .theme-card--auth .theme-form__footer,
-      .theme-card--auth .theme-login-feedback {
-        width: 100%;
-        max-width: 320px;
-        margin-left: auto;
-        margin-right: auto;
-      }
-
-      .theme-card--auth .theme-form__footer {
-        justify-content: center;
-      }
-
       .theme-field--constrained {
-        width: 100%;
-        max-width: 720px;
-        margin-left: auto;
+        width: min(100%, 720px);
+        margin-left: 0;
         margin-right: auto;
+        justify-self: start;
       }
 
       .theme-card__header {
