@@ -177,8 +177,10 @@
       .theme-hero__inner {
         position: relative;
         margin: 0 auto;
-        width: min(100%, calc(var(--theme-container-max) + var(--theme-container-padding) * 2));
+        width: 100%;
+        max-width: var(--theme-container-max);
         padding: 1.1rem var(--theme-container-padding);
+        box-sizing: border-box;
         border-radius: var(--radius-lg);
         background: var(--theme-hero-bg);
         overflow: hidden;
