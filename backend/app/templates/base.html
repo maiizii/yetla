@@ -825,13 +825,14 @@
       }
 
       .theme-form__grid--user-identity {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(10rem, auto);
         align-items: end;
       }
 
       .theme-form__grid--user-identity .theme-field {
         width: 100%;
         max-width: none;
+        min-width: 0;
         justify-self: stretch;
       }
 
