@@ -182,6 +182,7 @@
       }
 
       if (response.ok) {
+        handleResponseTriggers(response);
         handleSuccess(formLike);
       }
     } catch (error) {
@@ -194,18 +195,68 @@
     }
   }
 
-  function dispatchSuccessEvent(element) {
-    const eventName = element.getAttribute("data-success-event");
+  function emitGlobalEvent(eventName) {
     if (!eventName) {
       return;
     }
-
     if (window.htmx && typeof window.htmx.trigger === "function") {
       window.htmx.trigger(document.body, eventName);
       return;
     }
 
     document.body.dispatchEvent(new CustomEvent(eventName, { bubbles: true }));
+  }
+
+  function dispatchSuccessEvent(element) {
+    const eventName = element.getAttribute("data-success-event");
+    if (!eventName) {
+      return;
+    }
+
+    emitGlobalEvent(eventName);
+  }
+
+  function handleResponseTriggers(response) {
+    if (!response || typeof response.headers?.get !== "function") {
+      return;
+    }
+
+    const headerValue = response.headers.get("HX-Trigger");
+    if (!headerValue) {
+      return;
+    }
+
+    const trimmed = headerValue.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    const emitFromValue = (value) => {
+      if (typeof value === "string") {
+        emitGlobalEvent(value);
+      } else if (Array.isArray(value)) {
+        value.forEach((item) => {
+          if (typeof item === "string") {
+            emitGlobalEvent(item);
+          }
+        });
+      } else if (value && typeof value === "object") {
+        Object.keys(value).forEach((key) => emitGlobalEvent(key));
+      }
+    };
+
+    try {
+      emitFromValue(JSON.parse(trimmed));
+      return;
+    } catch (error) {
+      /* fall back to comma-separated parsing */
+    }
+
+    trimmed
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .forEach((name) => emitGlobalEvent(name));
   }
 
   function handleSuccess(formLike) {
@@ -678,6 +729,14 @@
     bindThemeGallery();
     enhanceDynamicUI();
 
+    const refreshUsersHandler = () => refreshUsers();
+    const refreshLinksHandler = () => refreshLinks();
+    const refreshSubdomainsHandler = () => refreshSubdomains();
+
+    document.body.addEventListener("refresh-users", refreshUsersHandler);
+    document.body.addEventListener("refresh-links", refreshLinksHandler);
+    document.body.addEventListener("refresh-subdomains", refreshSubdomainsHandler);
+
     if (!useFallback) {
       document.body.addEventListener("htmx:afterSwap", (event) => {
         const target = event.target;
@@ -735,14 +794,6 @@
     console.warn(
       "htmx 未加载，使用回退逻辑处理短链子域管理后台交互。\n建议检查 CDN 是否可访问。"
     );
-
-    const refreshUsersHandler = () => refreshUsers();
-    const refreshLinksHandler = () => refreshLinks();
-    const refreshSubdomainsHandler = () => refreshSubdomains();
-
-    document.body.addEventListener("refresh-users", refreshUsersHandler);
-    document.body.addEventListener("refresh-links", refreshLinksHandler);
-    document.body.addEventListener("refresh-subdomains", refreshSubdomainsHandler);
 
     refreshUsersHandler();
     refreshLinksHandler();
@@ -826,9 +877,12 @@
           swapContent(target, text, swapStrategy);
         }
 
-        if (response.ok && !isGet) {
-          // 删除操作会触发刷新事件
-          handleSuccess(trigger);
+        if (response.ok) {
+          handleResponseTriggers(response);
+          if (!isGet) {
+            // 删除操作会触发刷新事件
+            handleSuccess(trigger);
+          }
         }
       } catch (error) {
         if (target) {

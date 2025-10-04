@@ -807,6 +807,7 @@
       .theme-form__grid {
         display: grid;
         gap: 1.35rem;
+        justify-items: start;
       }
 
       .theme-form__grid--two {
@@ -827,6 +828,10 @@
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       }
 
+      .theme-form__grid--single {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
       .theme-form__span-full {
         grid-column: 1 / -1;
       }
@@ -835,12 +840,19 @@
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
+        width: min(100%, 420px);
+        justify-self: start;
       }
 
       .theme-label {
         font-size: 0.9rem;
         font-weight: 600;
         color: var(--theme-text-secondary);
+      }
+
+      .theme-field.theme-form__span-full,
+      .theme-field--constrained {
+        width: min(100%, 720px);
       }
 
       .theme-input,
