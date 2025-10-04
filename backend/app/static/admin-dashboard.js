@@ -1,4 +1,7 @@
 (function () {
+  const THEME_STORAGE_KEY = "yetla-admin-theme";
+  let storedThemeValue = null;
+
   function onReady(callback) {
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", callback, { once: true });
@@ -248,9 +251,161 @@
     }
   }
 
+  function highlightThemeCards(activeTheme, previewTheme) {
+    const cards = document.querySelectorAll("[data-theme-option]");
+    cards.forEach((card) => {
+      const option = card.getAttribute("data-theme-option");
+      const isActive = option === activeTheme;
+      const isPreview = previewTheme && option === previewTheme;
+      card.classList.toggle("is-active", Boolean(isActive));
+      card.classList.toggle("is-preview", Boolean(isPreview) && !isActive);
+
+      const applyButton = card.querySelector("[data-theme-apply]");
+      if (applyButton) {
+        applyButton.setAttribute("aria-pressed", isActive ? "true" : "false");
+      }
+    });
+  }
+
+  function setTheme(theme, { persist = false, preview = false } = {}) {
+    if (!theme) {
+      return;
+    }
+
+    const root = document.documentElement;
+    const body = document.body;
+
+    if (root) {
+      root.setAttribute("data-theme", theme);
+    }
+    if (body) {
+      body.setAttribute("data-theme", theme);
+    }
+
+    if (persist) {
+      storedThemeValue = theme;
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+      } catch (error) {
+        /* ignore storage failures */
+      }
+    }
+
+    const active = storedThemeValue || theme;
+    highlightThemeCards(active, preview ? theme : undefined);
+  }
+
+  function getStoredTheme() {
+    if (storedThemeValue) {
+      return storedThemeValue;
+    }
+
+    let saved = "aurora";
+    try {
+      const fromStorage = window.localStorage.getItem(THEME_STORAGE_KEY);
+      if (fromStorage) {
+        saved = fromStorage;
+      } else {
+        const attr = document.documentElement.getAttribute("data-theme");
+        if (attr) {
+          saved = attr;
+        }
+      }
+    } catch (error) {
+      const attr = document.documentElement.getAttribute("data-theme");
+      if (attr) {
+        saved = attr;
+      }
+    }
+
+    storedThemeValue = saved;
+    return saved;
+  }
+
+  function restorePersistedTheme() {
+    const theme = getStoredTheme();
+    setTheme(theme, { persist: false });
+  }
+
+  function bindThemeGallery() {
+    const cards = Array.from(
+      document.querySelectorAll("[data-theme-option]"),
+    );
+
+    if (!cards.length) {
+      return;
+    }
+
+    const handleApply = (event) => {
+      const button = event.currentTarget;
+      const theme = button.getAttribute("data-theme-apply");
+      if (!theme) {
+        return;
+      }
+      event.preventDefault();
+      setTheme(theme, { persist: true });
+    };
+
+    cards.forEach((card) => {
+      const theme = card.getAttribute("data-theme-option");
+      const applyButton = card.querySelector("[data-theme-apply]");
+
+      if (applyButton) {
+        applyButton.addEventListener("click", handleApply);
+      }
+
+      card.addEventListener("mouseenter", () => {
+        if (theme) {
+          setTheme(theme, { preview: true });
+        }
+      });
+
+      card.addEventListener("mouseleave", () => {
+        const saved = getStoredTheme();
+        setTheme(saved, { persist: false });
+      });
+
+      card.addEventListener("click", (event) => {
+        if (event.target.closest("[data-theme-apply]")) {
+          return;
+        }
+        if (theme) {
+          setTheme(theme, { persist: true });
+        }
+      });
+
+      card.addEventListener("focusin", () => {
+        if (theme) {
+          setTheme(theme, { preview: true });
+        }
+      });
+
+      card.addEventListener("focusout", () => {
+        const saved = getStoredTheme();
+        setTheme(saved, { persist: false });
+      });
+
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          if (!theme) {
+            return;
+          }
+          event.preventDefault();
+          setTheme(theme, { persist: true });
+        }
+      });
+    });
+
+    const saved = getStoredTheme();
+    highlightThemeCards(saved);
+  }
+
   onReady(() => {
     const authHeader = document.body.dataset.authHeader || "";
     const useFallback = typeof window.htmx === "undefined";
+
+    restorePersistedTheme();
+    bindThemeGallery();
 
     if (!useFallback) {
       document.body.addEventListener("htmx:afterRequest", (event) => {

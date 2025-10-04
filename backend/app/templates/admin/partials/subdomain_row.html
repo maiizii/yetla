@@ -1,20 +1,20 @@
 <tr
   id="subdomain-row-{{ item.id }}"
-  class="hover:bg-slate-50"
+  class="theme-table__row"
   {% if oob %}hx-swap-oob="outerHTML"{% endif %}
 >
-  <td class="px-4 py-3 font-mono text-slate-800">{{ item.host }}</td>
-  <td class="px-4 py-3 text-slate-600 break-words">{{ item.target_url }}</td>
-  <td class="px-4 py-3 text-slate-600">{{ item.code }}</td>
-  <td class="px-4 py-3 text-slate-600">{{ item.hits }}</td>
-  <td class="px-4 py-3 text-slate-500">
+  <td class="theme-table__cell theme-table__cell--mono">{{ item.host }}</td>
+  <td class="theme-table__cell theme-table__cell--wrap theme-table__cell--muted">{{ item.target_url }}</td>
+  <td class="theme-table__cell theme-table__cell--muted">{{ item.code }}</td>
+  <td class="theme-table__cell theme-table__cell--muted">{{ item.hits }}</td>
+  <td class="theme-table__cell theme-table__cell--muted">
     {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
   </td>
-  <td class="px-4 py-3">
-    <div class="flex justify-end gap-2">
+  <td class="theme-table__cell theme-table__cell--right">
+    <div class="theme-table__actions">
       <button
         type="button"
-        class="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100"
+        class="theme-button theme-button--ghost theme-button--sm"
         hx-get="/admin/subdomains/{{ item.id }}/edit"
         hx-target="closest tr"
         hx-swap="outerHTML"
@@ -23,7 +23,7 @@
       </button>
       <button
         type="button"
-        class="inline-flex items-center rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-600 shadow-sm transition hover:bg-rose-50"
+        class="theme-button theme-button--danger theme-button--sm"
         hx-delete="/api/subdomains/{{ item.id }}"
         hx-target="#subdomain-feedback"
         hx-swap="innerHTML"

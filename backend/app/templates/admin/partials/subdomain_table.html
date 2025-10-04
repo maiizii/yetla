@@ -1,23 +1,23 @@
 {% if subdomains %}
-<table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-  <thead class="bg-slate-50 text-slate-600">
+<table class="theme-table">
+  <thead>
     <tr>
-      <th scope="col" class="px-4 py-3 font-medium">Host</th>
-      <th scope="col" class="px-4 py-3 font-medium">目标地址</th>
-      <th scope="col" class="px-4 py-3 font-medium">状态码</th>
-      <th scope="col" class="px-4 py-3 font-medium">访问次数</th>
-      <th scope="col" class="px-4 py-3 font-medium">创建时间</th>
-      <th scope="col" class="px-4 py-3 font-medium text-right">操作</th>
+      <th scope="col">Host</th>
+      <th scope="col">目标地址</th>
+      <th scope="col">状态码</th>
+      <th scope="col">访问次数</th>
+      <th scope="col">创建时间</th>
+      <th scope="col" class="theme-table__cell--right">操作</th>
     </tr>
   </thead>
-  <tbody class="divide-y divide-slate-100">
+  <tbody>
     {% for item in subdomains %}
     {% include "admin/partials/subdomain_row.html" %}
     {% endfor %}
   </tbody>
 </table>
 {% else %}
-<div class="px-6 py-10 text-center text-sm text-slate-500">
-  暂无子域跳转规则，可通过上方表单或 <code class="font-mono">/api/subdomains</code> 接口创建。
+<div class="theme-table__empty">
+  暂无子域跳转规则，可通过上方表单或 <code>/api/subdomains</code> 接口创建。
 </div>
 {% endif %}
